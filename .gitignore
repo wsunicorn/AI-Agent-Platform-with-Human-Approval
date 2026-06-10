@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker/local data
+postgres_data/
+redis_data/
+ollama_data/
+
