@@ -95,7 +95,13 @@ def chunk_document(
         if not body.strip():
             continue
 
-        prefix = f"{heading}\n\n" if heading else ""
+        prefix_parts = []
+        if title:
+            prefix_parts.append(f"Document: {title}")
+        if heading:
+            prefix_parts.append(f"Heading: {heading}")
+        prefix = "\n".join(prefix_parts) + "\n\n" if prefix_parts else ""
+
         adjusted_size = chunk_size - len(prefix)
 
         text_chunks = _split_text_chunks(body, adjusted_size, overlap)

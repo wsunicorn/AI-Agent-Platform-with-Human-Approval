@@ -38,26 +38,28 @@ async def full_text_search(
     doc_type: str | None = None,
 ) -> list[SearchResult]:
     """PostgreSQL full-text search using tsvector."""
-    ts_query = func.plainto_tsquery("english", query)
+    # Use the 'simple' text search configuration for better language‑agnostic tokenization.
+    ts_query = func.plainto_tsquery("simple", query)
 
     stmt = (
         select(
             KnowledgeChunk,
             func.ts_rank(
-                func.to_tsvector("english", KnowledgeChunk.content),
+                func.to_tsvector("simple", KnowledgeChunk.content + " " + KnowledgeDocument.title),
                 ts_query,
             ).label("rank"),
         )
+        .join(KnowledgeDocument)
         .where(
-            func.to_tsvector("english", KnowledgeChunk.content).op("@@")(ts_query)
+            func.to_tsvector("simple", KnowledgeChunk.content + " " + KnowledgeDocument.title).op("@@")(ts_query)
         )
         .order_by(text("rank DESC"))
         .limit(limit)
     )
 
     if doc_type:
-        stmt = stmt.join(KnowledgeDocument).where(
-            KnowledgeDocument.doc_type == doc_type
+        stmt = stmt.where(
+            KnowledgeDocument.document_type == doc_type
         )
 
     result = await session.execute(stmt)
@@ -93,7 +95,7 @@ async def vector_search(
 
     if doc_type:
         stmt = stmt.join(KnowledgeDocument).where(
-            KnowledgeDocument.doc_type == doc_type
+            KnowledgeDocument.document_type == doc_type
         )
 
     result = await session.execute(stmt)
@@ -166,13 +168,18 @@ async def hybrid_search(
         logger.warning("vector_search_failed_falling_back_to_fts", error=str(exc))
         vec_results = []
 
+    # If vector search returns no results, fall back to full‑text only.
+    if not vec_results:
+        logger.info("vector_search_no_results_fallback", reason="no vector results")
+        return ft_results[:limit]
+
     logger.info(
         "hybrid_search_components",
         full_text_count=len(ft_results),
         vector_count=len(vec_results),
     )
 
-    # Fuse results.
+    # Fuse results using Reciprocal Rank Fusion.
     fused = reciprocal_rank_fusion([ft_results, vec_results])
 
     logger.info("hybrid_search_complete", fused_count=len(fused), limit=limit)
