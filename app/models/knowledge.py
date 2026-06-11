@@ -93,3 +93,22 @@ class KnowledgeChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     document = relationship("KnowledgeDocument", back_populates="chunks")
+
+    @property
+    def heading(self) -> str | None:
+        return self.chunk_metadata.get("heading")
+
+    @heading.setter
+    def heading(self, value: str | None) -> None:
+        if self.chunk_metadata is None:
+            self.chunk_metadata = {}
+        self.chunk_metadata["heading"] = value
+
+    @property
+    def document_id(self) -> uuid.UUID:
+        return self.knowledge_document_id
+
+    @document_id.setter
+    def document_id(self, value: uuid.UUID) -> None:
+        self.knowledge_document_id = value
+
