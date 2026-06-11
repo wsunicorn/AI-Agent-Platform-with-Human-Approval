@@ -33,6 +33,17 @@ async def ingest_document(
     3. Generate embeddings for each chunk.
     4. Store all chunks with embeddings.
     """
+    import hashlib
+
+    # Check if a document with the same content/checksum already exists.
+    content_checksum = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    stmt = select(KnowledgeDocument).where(KnowledgeDocument.checksum == content_checksum)
+    res = await session.execute(stmt)
+    existing_doc = res.scalar_one_or_none()
+    if existing_doc:
+        logger.info("document_already_exists_returning_existing", doc_id=str(existing_doc.id))
+        return existing_doc
+
     doc_id = uuid4()
     now = datetime.now(timezone.utc)
 
@@ -43,6 +54,7 @@ async def ingest_document(
         document_type=doc_type,
         tags=tags or [],
         source=source_url,
+        checksum=content_checksum,
         created_at=now,
         updated_at=now,
     )
