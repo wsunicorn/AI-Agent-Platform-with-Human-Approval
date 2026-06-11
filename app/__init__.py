@@ -1,2 +1,1 @@
 """HumanGate AI backend package."""
-

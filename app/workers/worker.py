@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from app.core.database import get_engine
 from app.core.redis import get_redis
+from app.tools.mock_tools import register_mock_tools
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("humangate.worker")
@@ -20,6 +21,7 @@ async def check_dependencies() -> None:
 
 
 async def main() -> None:
+    register_mock_tools()
     await check_dependencies()
     logger.info("worker started")
 
@@ -30,4 +32,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-

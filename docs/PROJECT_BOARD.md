@@ -7,8 +7,6 @@ Use this file as a lightweight local project board until GitHub Issues or GitHub
 - Build ticket CRUD APIs.
 - Build approval APIs.
 - Build audit log APIs.
-- Build tool registry.
-- Build guardrail policy engine.
 - Build LangGraph support workflow.
 - Build hybrid retrieval.
 - Build React ticket inbox.
@@ -19,19 +17,26 @@ Use this file as a lightweight local project board until GitHub Issues or GitHub
 
 ## Ready
 
-- Initialize repository.
-- Add root README.
-- Add Docker Compose.
-- Add backend skeleton.
-- Add frontend skeleton.
-- Add health checks.
+- Phase 7 LLM Gateway.
+- Create provider interface.
+- Implement Gemini provider.
+- Implement Ollama provider.
+- Add model routing config.
+- Add approval API routes.
 
 ## In Progress
 
-- Phase 0, Phase 1, and Phase 2 setup.
+- Phase 7 preparation.
 
 ## Done
 
+- Phase 0 planning.
+- Phase 1 repository setup.
+- Phase 2 infrastructure.
+- Phase 3 database and models.
+- Phase 4 core backend services.
+- Phase 5 guardrails and approval logic.
+- Phase 6 mock tools.
 - Product idea document.
 - Documentation folder.
 - Architecture diagram image.
@@ -72,4 +77,3 @@ Why it matters:
 Proposed change:
 Risk:
 ```
-

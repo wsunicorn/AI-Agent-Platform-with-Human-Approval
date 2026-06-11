@@ -11,9 +11,12 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/themes": "^3.3.0",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.139.3",
     "@tanstack/react-table": "^8.21.3",
@@ -27,6 +30,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -37,6 +41,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "jsdom": "^29.1.1",
     "playwright": "^1.57.0",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
@@ -45,4 +50,3 @@
     "vitest": "^4.0.15"
   }
 }
-

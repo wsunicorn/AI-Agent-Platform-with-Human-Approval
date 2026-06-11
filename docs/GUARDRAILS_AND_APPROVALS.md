@@ -86,6 +86,36 @@ def decide_action(tool_name: str, payload: dict) -> PolicyDecision:
     return allow("Safe action")
 ```
 
+## Phase 5 Implementation
+
+Implemented modules:
+
+- `app.guardrails.catalog`: default safe, approval-required, and blocked tool names.
+- `app.guardrails.policy`: `PolicyEngine`, `PolicyDecision`, policy actions, and denial reasons.
+- `app.tools.executor`: policy enforcement before every tool call.
+- `app.services.approval`: approval state transitions and audit logging.
+
+Policy behavior:
+
+- Unregistered tools are denied before a `tool_call` is created.
+- Registered tools with invalid Pydantic input are saved as denied `tool_calls`.
+- Catalog sensitivity overrides registry sensitivity for known tool names.
+- Blocked tools raise a guardrail error and are audited.
+- Approval-required tools cannot be directly executed through `ToolExecutor.execute`.
+- Approved execution must use `ToolExecutor.execute_approved`.
+- Duplicate approved execution is blocked by approval state and Redis lock.
+
+Verified smoke paths:
+
+- Safe tool executes immediately.
+- Invalid payload is denied.
+- Blocked tool is denied.
+- Direct sensitive execution is denied.
+- Approval-required tool creates an approval request.
+- Edit-and-approve uses the edited payload.
+- Reject marks the related tool call as denied.
+- Duplicate approved execution is blocked.
+
 ## Approval UI Requirements
 
 Reviewer must see:
@@ -114,4 +144,3 @@ Reviewer can:
 - Duplicate execution must be prevented.
 - Rejected actions cannot be executed.
 - Failed approved actions must remain visible in the timeline.
-

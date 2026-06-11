@@ -152,12 +152,25 @@
 Recommended:
 
 - `tickets(status, created_at)`
+- `tickets(priority, created_at)`
+- `tickets USING GIN(search_tsvector)`
 - `agent_runs(status, created_at)`
 - `tool_calls(agent_run_id, created_at)`
 - `approval_requests(status, created_at)`
 - `audit_logs(entity_type, entity_id, timestamp)`
 - `knowledge_chunks USING GIN(content_tsvector)`
 - `knowledge_chunks USING hnsw(embedding vector_cosine_ops)`
+
+## Seed Data
+
+Phase 3 includes idempotent seed data:
+
+- One refund support ticket for order `#12345`.
+- One support agent run waiting for human approval.
+- Two tool calls: one safe draft response and one approval-required email send.
+- One pending approval request.
+- Two knowledge documents with four chunks.
+- Five model configs for Gemini, Ollama local fallback, router, quality, and embedding.
 
 ## Data Rules
 
@@ -166,4 +179,3 @@ Recommended:
 - Approved execution must use the final approved payload.
 - Tool calls must store both success and failure attempts.
 - Knowledge document updates should create new versions when policy text changes.
-

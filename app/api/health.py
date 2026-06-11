@@ -35,4 +35,3 @@ async def ready() -> dict[str, object]:
         "status": "ok",
         "checks": checks,
     }
-

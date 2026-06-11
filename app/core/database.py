@@ -1,6 +1,12 @@
+from collections.abc import AsyncIterator
 from functools import lru_cache
 
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.core.config import get_settings
 
@@ -8,10 +14,27 @@ from app.core.config import get_settings
 @lru_cache
 def get_engine() -> AsyncEngine:
     settings = get_settings()
-    return create_async_engine(settings.database_url, pool_pre_ping=True)
+    return create_async_engine(
+        settings.database_url, pool_pre_ping=True, pool_size=5, max_overflow=10
+    )
 
 
 @lru_cache
-def get_sessionmaker() -> async_sessionmaker:
-    return async_sessionmaker(get_engine(), expire_on_commit=False)
+def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(get_engine(), expire_on_commit=False, autoflush=False)
 
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    sessionmaker = get_sessionmaker()
+    async with sessionmaker() as session:
+        yield session
+
+
+def async_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Get a session factory for use outside FastAPI dependency injection.
+
+    Usage:
+        async with async_session_factory()() as session:
+            ...
+    """
+    return get_sessionmaker()

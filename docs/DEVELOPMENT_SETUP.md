@@ -20,19 +20,34 @@ Docker Compose should run:
 - `web`
 - optional `ollama`
 
+PostgreSQL is built from `postgres.Dockerfile` so the local database includes pgvector
+without depending on the external `pgvector/pgvector` image.
+
 ## Backend Setup Plan
 
 ```text
 python -m venv .venv
 .venv\Scripts\activate
 pip install -U pip
-pip install fastapi uvicorn pydantic sqlalchemy asyncpg alembic redis arq langgraph
+pip install -r requirements-dev.txt
 ```
 
-Later, pin dependencies in:
+Dependencies are pinned in `requirements.txt` and `requirements-dev.txt`.
 
-- `pyproject.toml`
-- `requirements.txt` if needed
+## Database Migrations
+
+```powershell
+docker compose up -d --build postgres redis api worker
+docker compose exec api alembic upgrade head
+docker compose exec api python -m app.db.seed
+```
+
+Useful checks:
+
+```powershell
+docker compose exec api alembic current
+docker compose exec postgres psql -U postgres -d humangate -c "select extversion from pg_extension where extname = 'vector';"
+```
 
 ## Frontend Setup Plan
 
@@ -75,4 +90,3 @@ LOCAL_EMBEDDING_MODEL=nomic-embed-text-v2-moe
 5. Connect WebSocket test endpoint.
 6. Create first ticket.
 7. Store first audit log.
-

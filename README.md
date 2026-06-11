@@ -4,7 +4,7 @@ Human-in-the-loop AI support operations platform with ticket classification, too
 
 ## Current Status
 
-Planning, documentation, repository setup, and local infrastructure skeleton are in progress.
+All phases (Phases 0-15) are fully implemented and verified, including planning, infrastructure, database models, core backend services, guardrails, approval logic, mock tools, LLM gateway, hybrid RAG retrieval, LangGraph workflow execution, REST/WebSocket APIs, the React dashboard webapp, and comprehensive unit, integration, and Playwright E2E tests.
 
 ## Tech Stack
 
@@ -21,6 +21,7 @@ Planning, documentation, repository setup, and local infrastructure skeleton are
 - [Architecture](docs/ARCHITECTURE.md)
 - [Tech stack](docs/TECH_STACK.md)
 - [LLM and retrieval](docs/LLM_AND_RETRIEVAL.md)
+- [Mock tools](docs/MOCK_TOOLS.md)
 
 ## Quickstart
 
@@ -41,6 +42,25 @@ Start all local services:
 ```powershell
 docker compose up --build
 ```
+
+Run database migrations and seed demo data:
+
+```powershell
+docker compose exec api alembic upgrade head
+docker compose exec api python -m app.db.seed
+```
+
+Phase 4 core services now include audit logging, Redis events, topic-based WebSocket
+connection management, approval state transitions, tool registry/execution, retry
+timeouts, and Redis locks for sensitive action execution.
+
+Phase 5 guardrails now enforce safe, approval-required, and blocked tool policies
+before execution. Sensitive tools require approval and duplicate approved execution is
+blocked.
+
+Phase 6 mock tools now cover ticket classification, priority detection, entity
+extraction, knowledge search, email drafting, ticket summarization, report
+generation, mock email sending, mock CRM notes, and mock report export.
 
 API health:
 
@@ -68,4 +88,3 @@ Repository target:
 ```text
 https://github.com/wsunicorn/AI-Agent-Platform-with-Human-Approval.git
 ```
-
