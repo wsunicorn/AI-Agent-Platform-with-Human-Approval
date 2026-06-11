@@ -177,15 +177,17 @@ function CreateDocForm({
   const [content, setContent] = useState("");
   const [docType, setDocType] = useState("policy");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       await createDocument({ title, content, doc_type: docType });
       onCreated();
-    } catch {
-      // Let the user try again.
+    } catch (err: any) {
+      setError(err?.message || "Failed to create document");
     } finally {
       setLoading(false);
     }
@@ -196,6 +198,11 @@ function CreateDocForm({
       onSubmit={handleSubmit}
       className="mb-6 rounded-lg border border-zinc-800 bg-zinc-900/70 p-5"
     >
+      {error && (
+        <div className="mb-4 rounded-md border border-red-900 bg-red-950/40 p-3 text-xs text-red-400">
+          {error}
+        </div>
+      )}
       <div className="space-y-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-400">Title</label>

@@ -40,10 +40,9 @@ async def ingest_document(
         id=doc_id,
         title=title,
         content=content,
-        doc_type=doc_type,
+        document_type=doc_type,
         tags=tags or [],
         source_url=source_url,
-        status="indexing",
         created_at=now,
         updated_at=now,
     )
@@ -73,15 +72,12 @@ async def ingest_document(
         for chunk in chunks_with_embeddings:
             session.add(chunk)
 
-        doc.status = "indexed"
-        doc.chunk_count = len(chunks_with_embeddings)
         doc.updated_at = datetime.now(timezone.utc)
 
         await session.flush()
         logger.info("document_ingestion_complete", doc_id=str(doc_id))
 
     except Exception as exc:
-        doc.status = "failed"
         doc.updated_at = datetime.now(timezone.utc)
         await session.flush()
         logger.error(
