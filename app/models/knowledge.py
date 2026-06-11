@@ -44,6 +44,10 @@ class KnowledgeDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     @property
     def doc_type(self) -> str:
+        if isinstance(self.document_type, str):
+            return self.document_type
+        if self.document_type is None:
+            return "policy"
         return self.document_type.value
 
     @property

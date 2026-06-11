@@ -35,6 +35,10 @@ async def ingest_document(
     """
     import hashlib
 
+    # Convert string to KnowledgeDocumentType enum if needed.
+    if isinstance(doc_type, str):
+        doc_type = KnowledgeDocumentType(doc_type)
+
     # Check if a document with the same content/checksum already exists.
     content_checksum = hashlib.sha256(content.encode("utf-8")).hexdigest()
     stmt = select(KnowledgeDocument).where(KnowledgeDocument.checksum == content_checksum)
