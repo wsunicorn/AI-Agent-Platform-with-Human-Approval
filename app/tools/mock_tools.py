@@ -195,8 +195,8 @@ MOCK_KNOWLEDGE_BASE = [
         "source": "mock://kb/human-approval-rules",
         "tags": ["guardrails", "approval", "sensitive-actions"],
         "content": (
-            "Sensitive actions include sending emails, creating CRM notes, exporting reports, "
-            "and triggering refund requests. These actions must pause for review."
+            "Sensitive actions include sending emails, exporting reports, and triggering "
+            "refund requests. Internal CRM notes can run automatically but must be audited."
         ),
     },
     {
@@ -545,12 +545,11 @@ def register_mock_tools(registry: ToolRegistry | None = None) -> ToolRegistry:
         ),
         ToolDefinition(
             name="create_crm_note",
-            description="Mock-create a CRM note after approval.",
+            description="Mock-create an internal CRM note and audit the write.",
             input_model=CreateCRMNoteInput,
             output_model=CreateCRMNoteOutput,
             handler=create_crm_note,
-            sensitivity=Sensitivity.APPROVAL_REQUIRED,
-            risk_reason="Writing CRM data requires human approval in the MVP.",
+            sensitivity=Sensitivity.SAFE,
             max_attempts=1,
         ),
         ToolDefinition(

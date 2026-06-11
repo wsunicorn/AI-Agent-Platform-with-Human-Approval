@@ -7,6 +7,7 @@ SAFE_TOOL_NAMES = frozenset(
         "extract_entities",
         "search_knowledge_base",
         "draft_email_response",
+        "create_crm_note",
         "summarize_tickets",
         "generate_report",
     }
@@ -15,7 +16,6 @@ SAFE_TOOL_NAMES = frozenset(
 APPROVAL_REQUIRED_TOOL_NAMES = frozenset(
     {
         "send_email",
-        "create_crm_note",
         "update_ticket_status",
         "export_report",
         "trigger_refund_request",

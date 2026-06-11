@@ -125,12 +125,56 @@ def _normalize_send_email_action(
     }
 
 
+def _normalize_crm_note_action(
+    action: dict[str, Any],
+    state: SupportAgentState,
+    has_email_action: bool,
+) -> dict[str, Any]:
+    payload = action.get("payload") if isinstance(action.get("payload"), dict) else {}
+    payload = dict(payload)
+    note = _first_text_value(payload.get("note"))
+    if not note:
+        intent = state.get("intent", "general_inquiry").replace("_", " ")
+        note = f"Agent prepared support response for {intent}."
+
+    if has_email_action:
+        note = re.sub(r"\b(sent|emailed|delivered)\b", "prepared", note, flags=re.I)
+        if "approval" not in note.lower():
+            note = f"{note} Outbound customer email is pending human approval."
+
+    payload["note"] = note
+
+    entities = state.get("entities") or {}
+    if isinstance(entities, dict):
+        payload.setdefault("customer_email", _customer_email_from_state(state))
+        order_id = _first_text_value(entities.get("order_id")) or _first_text_value(
+            entities.get("order_ids")
+        )
+        tags = payload.get("tags")
+        if not isinstance(tags, list):
+            tags = []
+        if order_id and "order" not in tags:
+            tags.append("order")
+        intent = state.get("intent")
+        if isinstance(intent, str) and intent not in tags:
+            tags.append(intent)
+        payload["tags"] = tags
+
+    return {
+        **action,
+        "tool_name": "create_crm_note",
+        "payload": payload,
+        "reason": action.get("reason") or "Record an internal, audited support note.",
+    }
+
+
 def _normalize_planned_actions(
     raw_actions: Any,
     state: SupportAgentState,
 ) -> list[dict[str, Any]]:
     normalized: list[dict[str, Any]] = []
     has_email_action = False
+    candidate_actions: list[dict[str, Any]] = []
 
     if isinstance(raw_actions, list):
         for item in raw_actions:
@@ -145,7 +189,7 @@ def _normalize_planned_actions(
                     continue
                 action = email_action
                 has_email_action = True
-            normalized.append(action)
+            candidate_actions.append(action)
 
     if not has_email_action:
         email_action = _normalize_send_email_action(
@@ -157,7 +201,14 @@ def _normalize_planned_actions(
             state,
         )
         if email_action is not None:
-            normalized.append(email_action)
+            candidate_actions.append(email_action)
+            has_email_action = True
+
+    for action in candidate_actions:
+        if action.get("tool_name") == "create_crm_note":
+            normalized.append(_normalize_crm_note_action(action, state, has_email_action))
+        else:
+            normalized.append(action)
 
     return normalized
 

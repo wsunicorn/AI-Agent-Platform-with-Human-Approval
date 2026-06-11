@@ -62,7 +62,7 @@ Expected flow:
 6. Policy gate marks export as approval-required.
 7. Reviewer approves or rejects export.
 
-## Scenario 4: CRM Note Approval
+## Scenario 4: Audited CRM Note
 
 Input:
 
@@ -73,9 +73,7 @@ Create an internal CRM note for this customer saying they reported a damaged pro
 Expected flow:
 
 1. Agent drafts CRM note.
-2. `create_crm_note` is proposed.
-3. Policy gate marks it as approval-required.
-4. Reviewer approves note creation.
-5. Mock CRM note is created.
-6. Audit log stores original and approved payload.
-
+2. Policy gate marks `create_crm_note` as safe internal work.
+3. Mock CRM note is created automatically.
+4. Audit log stores the payload and completed tool output.
+5. Any outbound customer email still pauses for human approval.

@@ -13,6 +13,7 @@ Examples:
 - `extract_entities`
 - `search_knowledge_base`
 - `draft_email_response`
+- `create_crm_note`
 - `summarize_tickets`
 - `generate_report`
 
@@ -23,7 +24,6 @@ Must create an approval request.
 Examples:
 
 - `send_email`
-- `create_crm_note`
 - `update_ticket_status`
 - `export_report`
 - `trigger_refund_request`
@@ -57,6 +57,7 @@ proposed
 - AI cannot initiate refunds without approval.
 - AI cannot delete customer data.
 - AI cannot modify audit logs.
+- AI may write internal CRM notes automatically only when the write is audited.
 - AI cannot call unregistered tools.
 - AI cannot execute a tool when validation fails.
 - AI cannot execute approval-required tools directly.

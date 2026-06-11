@@ -16,10 +16,10 @@ CRM, or report export providers.
 | `extract_entities` | Safe | Extract customer name, email, order IDs, products, issue type, and dates. |
 | `search_knowledge_base` | Safe | Search the mock policy and playbook knowledge base. |
 | `draft_email_response` | Safe | Draft a customer response for review. |
+| `create_crm_note` | Safe | Mock-create an audited internal CRM note. |
 | `summarize_tickets` | Safe | Summarize ticket volume, intent mix, priority mix, and notable tickets. |
 | `generate_report` | Safe | Generate a markdown support report from structured inputs. |
 | `send_email` | Approval required | Mock-send an outbound email after human approval. |
-| `create_crm_note` | Approval required | Mock-create a CRM note after human approval. |
 | `export_report` | Approval required | Mock-export a generated report after human approval. |
 
 ## Implementation
@@ -50,13 +50,13 @@ Safe tools execute immediately:
 - `extract_entities`
 - `search_knowledge_base`
 - `draft_email_response`
+- `create_crm_note`
 - `summarize_tickets`
 - `generate_report`
 
-Sensitive mock integrations pause for review:
+Customer-facing or disclosure-sensitive mock integrations pause for review:
 
 - `send_email`
-- `create_crm_note`
 - `export_report`
 
 Direct execution of sensitive tools with `require_approval=False` is blocked by
@@ -73,6 +73,7 @@ Input ticket
 -> extract_entities
 -> search_knowledge_base
 -> draft_email_response
+-> create_crm_note executes and is audited
 -> send_email waits for approval
 -> reviewer approves
 -> send_email executes
