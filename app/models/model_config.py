@@ -1,3 +1,5 @@
+from typing import Any
+
 from sqlalchemy import Boolean, Float, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,3 +40,26 @@ class ModelConfig(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_default: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+
+    @property
+    def is_enabled(self) -> bool:
+        return True
+
+    @is_enabled.setter
+    def is_enabled(self, value: bool) -> None:
+        pass
+
+    @property
+    def config(self) -> dict[str, Any]:
+        return {
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+
+    @config.setter
+    def config(self, value: dict[str, Any]) -> None:
+        if isinstance(value, dict):
+            if "temperature" in value:
+                self.temperature = value["temperature"]
+            if "max_tokens" in value:
+                self.max_tokens = value["max_tokens"]

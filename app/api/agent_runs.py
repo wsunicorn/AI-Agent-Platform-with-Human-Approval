@@ -43,7 +43,10 @@ async def _run_support_agent(run_id: str, input_text: str) -> None:
             )
             run = db_result.scalar_one_or_none()
             if run:
-                run.status = "completed"
+                if result.get("approval_requests"):
+                    run.status = "waiting_for_approval"
+                else:
+                    run.status = "completed"
                 run.intent = result.get("intent")
                 run.priority = result.get("priority")
                 run.draft_response = result.get("draft_response")
@@ -84,8 +87,11 @@ async def _run_workflow_agent(run_id: str, input_text: str) -> None:
             )
             run = db_result.scalar_one_or_none()
             if run:
-                run.status = "completed"
-                run.final_output = result.get("final_report")
+                if result.get("approval_requests"):
+                    run.status = "waiting_for_approval"
+                else:
+                    run.status = "completed"
+                    run.final_output = result.get("final_report")
                 run.updated_at = datetime.now(timezone.utc)
                 await session.commit()
     except Exception as exc:
@@ -113,6 +119,7 @@ async def create_support_run(
         id=run_id,
         ticket_id=body.ticket_id,
         mode="support_agent",
+        input_type="ticket",
         status="queued",
         input_text=body.input_text,
         created_at=now,
@@ -139,6 +146,7 @@ async def create_workflow_run(
         id=run_id,
         ticket_id=body.ticket_id,
         mode="workflow_automation",
+        input_type="instruction",
         status="queued",
         input_text=body.input_text,
         created_at=now,

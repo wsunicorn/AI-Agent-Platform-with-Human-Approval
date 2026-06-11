@@ -43,3 +43,16 @@ def catalog_sensitivity(tool_name: str) -> Sensitivity | None:
     if tool_name in SAFE_TOOL_NAMES:
         return Sensitivity.SAFE
     return None
+
+
+SAFE_TOOLS = SAFE_TOOL_NAMES
+APPROVAL_REQUIRED_TOOLS = APPROVAL_REQUIRED_TOOL_NAMES
+BLOCKED_TOOLS = BLOCKED_TOOL_NAMES
+
+TOOL_SENSITIVITY_CATALOG = {}
+for name in SAFE_TOOLS:
+    TOOL_SENSITIVITY_CATALOG[name] = "safe"
+for name in APPROVAL_REQUIRED_TOOLS:
+    TOOL_SENSITIVITY_CATALOG[name] = "approval_required"
+for name in BLOCKED_TOOLS:
+    TOOL_SENSITIVITY_CATALOG[name] = "blocked"

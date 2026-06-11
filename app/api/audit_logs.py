@@ -23,16 +23,22 @@ async def list_audit_logs(
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    query = select(AuditLog).order_by(AuditLog.created_at.desc())
+    query = select(AuditLog).order_by(AuditLog.timestamp.desc())
 
     if agent_run_id:
-        query = query.where(AuditLog.agent_run_id == agent_run_id)
+        from sqlalchemy import or_
+        query = query.where(
+            or_(
+                AuditLog.event_metadata["agent_run_id"].astext == agent_run_id,
+                AuditLog.entity_id == agent_run_id
+            )
+        )
     if entity_type:
         query = query.where(AuditLog.entity_type == entity_type)
     if actor_type:
         query = query.where(AuditLog.actor_type == actor_type)
     if action:
-        query = query.where(AuditLog.action == action)
+        query = query.where(AuditLog.event_type == action)
 
     query = query.limit(limit).offset(offset)
     result = await session.execute(query)

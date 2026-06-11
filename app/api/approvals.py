@@ -160,6 +160,7 @@ async def execute_approved(
             approval_id=uuid.UUID(approval_id),
             actor_id="human_admin",
         )
+        await session.commit()
     except Exception as exc:
         raise HTTPException(
             status_code=400,

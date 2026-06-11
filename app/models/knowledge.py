@@ -42,6 +42,21 @@ class KnowledgeDocument(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
     )
 
+    @property
+    def doc_type(self) -> str:
+        return self.document_type.value
+
+    @property
+    def status(self) -> str:
+        return "indexed"
+
+    @property
+    def chunk_count(self) -> int:
+        try:
+            return len(self.chunks)
+        except Exception:
+            return 0
+
 
 class KnowledgeChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "knowledge_chunks"

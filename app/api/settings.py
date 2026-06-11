@@ -106,7 +106,7 @@ async def list_tools() -> dict:
             ToolConfigOut(
                 name=name,
                 sensitivity=sensitivity,
-                description=entry.get("description", ""),
+                description=entry.description if entry.description else "",
                 enabled=True,
             )
         )

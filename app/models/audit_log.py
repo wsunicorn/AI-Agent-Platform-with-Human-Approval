@@ -39,3 +39,15 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
         nullable=False,
         server_default=func.now(),
     )
+
+    @property
+    def action(self) -> str:
+        return self.event_type
+
+    @property
+    def created_at(self) -> datetime:
+        return self.timestamp
+
+    @property
+    def metadata_(self) -> dict[str, Any]:
+        return self.event_metadata

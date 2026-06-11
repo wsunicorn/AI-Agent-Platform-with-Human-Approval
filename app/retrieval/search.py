@@ -158,9 +158,13 @@ async def hybrid_search(
     ft_results = await full_text_search(
         session, query, limit=full_text_limit, doc_type=doc_type
     )
-    vec_results = await vector_search(
-        session, query, limit=vector_limit, doc_type=doc_type
-    )
+    try:
+        vec_results = await vector_search(
+            session, query, limit=vector_limit, doc_type=doc_type
+        )
+    except Exception as exc:
+        logger.warning("vector_search_failed_falling_back_to_fts", error=str(exc))
+        vec_results = []
 
     logger.info(
         "hybrid_search_components",

@@ -30,7 +30,7 @@ async def create_ticket(
         priority="normal",
         customer_email=body.customer_email,
         customer_name=body.customer_name,
-        channel=body.channel,
+        source=body.channel,
         created_at=now,
         updated_at=now,
     )

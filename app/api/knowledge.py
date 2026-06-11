@@ -49,7 +49,7 @@ async def list_documents(
         KnowledgeDocument.created_at.desc()
     )
     if doc_type:
-        query = query.where(KnowledgeDocument.doc_type == doc_type)
+        query = query.where(KnowledgeDocument.document_type == doc_type)
     query = query.limit(limit).offset(offset)
     result = await session.execute(query)
     docs = result.scalars().all()
