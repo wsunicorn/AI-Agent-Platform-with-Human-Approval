@@ -51,3 +51,7 @@ class Ticket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     agent_runs = relationship("AgentRun", back_populates="ticket")
+
+    @property
+    def channel(self) -> str:
+        return self.source
