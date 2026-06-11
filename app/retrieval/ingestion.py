@@ -42,7 +42,7 @@ async def ingest_document(
         content=content,
         document_type=doc_type,
         tags=tags or [],
-        source_url=source_url,
+        source=source_url,
         created_at=now,
         updated_at=now,
     )
