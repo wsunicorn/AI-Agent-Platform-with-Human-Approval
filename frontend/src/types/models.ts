@@ -23,10 +23,62 @@ export interface AgentRun {
   intent: string | null;
   priority: string | null;
   draft_response: string | null;
-  final_output: string | null;
+  final_output: RunFinalOutput | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface RunActionSummary {
+  id?: string;
+  tool_name?: string;
+  label?: string;
+  kind?: string;
+  status?: string;
+  sensitivity?: string;
+  to?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  delivery_status?: string | null;
+  provider?: string | null;
+  provider_message_id?: string | null;
+  sent_at?: string | null;
+  summary?: string | null;
+  crm_note_id?: string | null;
+  title?: string | null;
+  format?: string | null;
+  download_url?: string | null;
+  error_message?: string | null;
+}
+
+export interface RunApprovalSummary {
+  id: string;
+  tool_name: string;
+  status: ApprovalStatus;
+  reviewer: string | null;
+  reviewer_comment: string | null;
+  reviewed_at: string | null;
+  executed_at: string | null;
+  risk_reason: string | null;
+}
+
+export interface RunFinalOutput {
+  summary?: string;
+  status?: string;
+  draft_response?: string | null;
+  intent?: string | null;
+  priority?: string | null;
+  entities?: Record<string, unknown>;
+  citations?: Record<string, unknown>[];
+  planned_actions?: Record<string, unknown>[];
+  approval_requests?: Record<string, unknown>[];
+  actions?: RunActionSummary[];
+  deliveries?: RunActionSummary[];
+  approvals?: RunApprovalSummary[];
+  blocked_actions?: Record<string, unknown>[];
+  errors?: string[];
+  counts?: Record<string, number>;
+  [key: string]: unknown;
 }
 
 export interface ToolCall {
@@ -39,6 +91,8 @@ export interface ToolCall {
   error_message: string | null;
   sensitivity: string | null;
   duration_ms: number | null;
+  started_at: string | null;
+  completed_at: string | null;
   created_at: string;
 }
 
@@ -52,7 +106,9 @@ export interface Approval {
   edited_payload: Record<string, unknown> | null;
   risk_reason: string | null;
   reviewer: string | null;
+  reviewer_comment: string | null;
   reviewed_at: string | null;
+  executed_at: string | null;
   created_at: string;
 }
 
@@ -78,6 +134,8 @@ export interface AuditLog {
   before_state: Record<string, unknown> | null;
   after_state: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
+  message: string | null;
+  severity: "info" | "success" | "warning" | "error";
   created_at: string;
 }
 

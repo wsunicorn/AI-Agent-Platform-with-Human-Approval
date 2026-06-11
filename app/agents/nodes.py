@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 import structlog
@@ -12,6 +13,130 @@ from app.llm import LLMMessage, LLMRequest, get_model_router
 from app.llm.router import TaskPurpose
 
 logger = structlog.get_logger(__name__)
+
+
+def _first_text_value(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, str) and item.strip():
+                return item.strip()
+    return None
+
+
+def _customer_email_from_state(state: SupportAgentState) -> str | None:
+    direct_email = _first_text_value(state.get("ticket_customer_email"))
+    if direct_email:
+        return direct_email
+
+    entities = state.get("entities") or {}
+    if not isinstance(entities, dict):
+        return None
+
+    for key in ("customer_email", "email", "to"):
+        email = _first_text_value(entities.get(key))
+        if email:
+            return email
+
+    raw_entities = entities.get("raw_entities")
+    if isinstance(raw_entities, dict):
+        email = _first_text_value(raw_entities.get("emails"))
+        if email:
+            return email
+
+    match = re.search(
+        r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+",
+        state.get("input_text", ""),
+    )
+    return match.group(0) if match else None
+
+
+def _support_email_subject(state: SupportAgentState) -> str:
+    intent = state.get("intent") or "general_inquiry"
+    entities = state.get("entities") or {}
+    order_id = None
+    if isinstance(entities, dict):
+        order_id = _first_text_value(entities.get("order_id")) or _first_text_value(
+            entities.get("order_ids")
+        )
+
+    order_text = f" for order #{order_id}" if order_id else ""
+    if intent == "refund_request":
+        return f"Refund request update{order_text}"
+    if intent == "product_issue":
+        return f"Support update{order_text}"
+    if intent == "billing_inquiry":
+        return "Billing support update"
+    return "Support request update"
+
+
+def _normalize_send_email_action(
+    action: dict[str, Any],
+    state: SupportAgentState,
+) -> dict[str, Any] | None:
+    payload = action.get("payload") if isinstance(action.get("payload"), dict) else {}
+    payload = dict(payload)
+    if "recipient" in payload and "to" not in payload:
+        payload["to"] = payload["recipient"]
+
+    to = _first_text_value(payload.get("to")) or _customer_email_from_state(state)
+    body = (
+        _first_text_value(payload.get("body"))
+        or _first_text_value(payload.get("draft"))
+        or _first_text_value(state.get("draft_response"))
+    )
+    subject = _first_text_value(payload.get("subject")) or _support_email_subject(state)
+
+    if not to or not body:
+        return None
+
+    return {
+        **action,
+        "tool_name": "send_email",
+        "payload": {
+            "to": to,
+            "subject": subject,
+            "body": body,
+        },
+        "reason": action.get("reason")
+        or "Send the reviewed support response to the customer after approval.",
+    }
+
+
+def _normalize_planned_actions(
+    raw_actions: Any,
+    state: SupportAgentState,
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    has_email_action = False
+
+    if isinstance(raw_actions, list):
+        for item in raw_actions:
+            if not isinstance(item, dict):
+                continue
+            action = {**item, "payload": item.get("payload") or {}}
+            if action.get("tool_name") == "send_email":
+                email_action = _normalize_send_email_action(action, state)
+                if email_action is None:
+                    continue
+                action = email_action
+                has_email_action = True
+            normalized.append(action)
+
+    if not has_email_action:
+        email_action = _normalize_send_email_action(
+            {
+                "tool_name": "send_email",
+                "payload": {},
+                "reason": "Send the drafted customer response after a human approves it.",
+            },
+            state,
+        )
+        if email_action is not None:
+            normalized.append(email_action)
+
+    return normalized
 
 
 # ── Support Agent Nodes ──────────────────────────────────────────────
@@ -309,7 +434,7 @@ demonstrate capability."""
             ),
             purpose=TaskPurpose.ROUTING,
         )
-        actions = result.get("actions", [])
+        actions = _normalize_planned_actions(result.get("actions", []), state)
         return {
             "planned_actions": actions,
             "current_step": "plan_tool_actions",
@@ -318,8 +443,9 @@ demonstrate capability."""
         }
     except Exception as exc:
         logger.error("plan_tool_actions_failed", error=str(exc))
+        actions = _normalize_planned_actions([], state)
         return {
-            "planned_actions": [],
+            "planned_actions": actions,
             "current_step": "plan_tool_actions",
             "errors": state.get("errors", []) + [f"plan_tool_actions: {exc}"],
             "steps_completed": state.get("steps_completed", [])
@@ -529,27 +655,48 @@ async def finalize_output(state: SupportAgentState) -> dict[str, Any]:
     """Compile the final output from all completed steps."""
     draft = state.get("draft_response", "")
     tool_results = state.get("tool_results", [])
+    approval_requests = state.get("approval_requests", [])
+    planned_actions = state.get("planned_actions", [])
     blocked = state.get("blocked_actions", [])
     errors = state.get("errors", [])
 
-    output_parts = []
-    if draft:
-        output_parts.append(f"Draft Response:\n{draft}")
-    if tool_results:
-        completed = [r for r in tool_results if r.get("status") == "completed"]
-        if completed:
-            output_parts.append(
-                f"Completed Actions: {len(completed)}"
-            )
-    if blocked:
-        output_parts.append(
-            f"Blocked Actions: {len(blocked)} (denied by policy)"
-        )
-    if errors:
-        output_parts.append(f"Errors: {len(errors)}")
+    completed = [result for result in tool_results if result.get("status") == "completed"]
+    email_actions = [
+        action
+        for action in planned_actions
+        if action.get("tool_name") == "send_email"
+    ]
+    pending_email = next(iter(email_actions), None)
+
+    if approval_requests:
+        summary = "Draft is ready and a sensitive action is waiting for human approval."
+    elif completed:
+        summary = f"Completed {len(completed)} safe action(s)."
+    elif blocked:
+        summary = "Some actions were blocked by policy."
+    elif errors:
+        summary = "The agent finished with recoverable errors."
+    else:
+        summary = "The agent prepared a response without executing tools."
 
     return {
-        "final_output": "\n\n".join(output_parts) or "No output generated.",
+        "final_output": {
+            "summary": summary,
+            "draft_response": draft or None,
+            "planned_actions": planned_actions,
+            "tool_results": tool_results,
+            "approvals": approval_requests,
+            "pending_email": pending_email,
+            "blocked_actions": blocked,
+            "errors": errors,
+            "counts": {
+                "planned_actions": len(planned_actions),
+                "tool_results": len(tool_results),
+                "pending_approvals": len(approval_requests),
+                "blocked_actions": len(blocked),
+                "errors": len(errors),
+            },
+        },
         "current_step": "finalize_output",
         "steps_completed": state.get("steps_completed", []) + ["finalize_output"],
     }

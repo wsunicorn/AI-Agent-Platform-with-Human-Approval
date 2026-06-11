@@ -1,6 +1,6 @@
 /** Approval Queue page. */
 
-import { CheckCircle, ShieldCheck, XCircle } from "@phosphor-icons/react";
+import { CheckCircle, EnvelopeSimple, Play, ShieldCheck, XCircle } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -31,17 +31,26 @@ export function ApprovalQueue({ onSelectApproval }: ApprovalQueueProps) {
 
   const approveMut = useMutation({
     mutationFn: (id: string) => approveAction(id, { reviewer: "admin" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approvals"] }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-run", updated.agent_run_id] });
+    },
   });
 
   const rejectMut = useMutation({
     mutationFn: (id: string) => rejectAction(id, { reviewer: "admin" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approvals"] }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-run", updated.agent_run_id] });
+    },
   });
 
   const executeMut = useMutation({
     mutationFn: (id: string) => executeAction(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approvals"] }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-run", updated.agent_run_id] });
+    },
   });
 
   return (
@@ -98,9 +107,12 @@ export function ApprovalQueue({ onSelectApproval }: ApprovalQueueProps) {
                     </p>
                     {approval.risk_reason && (
                       <p className="mt-0.5 text-xs text-zinc-500">
-                        {approval.risk_reason}
-                      </p>
-                    )}
+                      {approval.risk_reason}
+                    </p>
+                  )}
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {statusHint(approval)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -109,12 +121,7 @@ export function ApprovalQueue({ onSelectApproval }: ApprovalQueueProps) {
                 </div>
               </div>
 
-              {/* Payload preview */}
-              <div className="mt-3 rounded-md bg-zinc-800/50 p-3">
-                <pre className="font-mono text-xs text-zinc-400 overflow-x-auto max-h-32 overflow-y-auto">
-                  {JSON.stringify(approval.proposed_payload, null, 2)}
-                </pre>
-              </div>
+              <ApprovalPayloadPreview approval={approval} />
 
               {/* Actions */}
               {(approval.status === "pending_review" ||
@@ -146,6 +153,7 @@ export function ApprovalQueue({ onSelectApproval }: ApprovalQueueProps) {
                     disabled={executeMut.isPending}
                     className="flex items-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-500"
                   >
+                    <Play size={14} weight="fill" />
                     Execute
                   </button>
                 </div>
@@ -156,4 +164,62 @@ export function ApprovalQueue({ onSelectApproval }: ApprovalQueueProps) {
       )}
     </div>
   );
+}
+
+function ApprovalPayloadPreview({ approval }: { approval: Approval }) {
+  const payload = approval.edited_payload ?? approval.proposed_payload;
+
+  if (approval.tool_name === "send_email") {
+    return (
+      <div className="mt-3 rounded-md border border-teal-500/20 bg-teal-500/5 p-3">
+        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-teal-300">
+          <EnvelopeSimple size={14} weight="bold" />
+          Email Preview
+        </div>
+        <div className="grid gap-2 text-xs md:grid-cols-2">
+          <PreviewField label="To" value={payload.to} />
+          <PreviewField label="Subject" value={payload.subject} />
+        </div>
+        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-relaxed text-zinc-400">
+          {String(payload.body ?? "No body")}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-md bg-zinc-800/50 p-3">
+      <pre className="max-h-32 overflow-y-auto overflow-x-auto font-mono text-xs text-zinc-400">
+        {JSON.stringify(payload, null, 2)}
+      </pre>
+    </div>
+  );
+}
+
+function PreviewField({ label, value }: { label: string; value: unknown }) {
+  return (
+    <div>
+      <span className="text-zinc-500">{label}</span>
+      <p className="truncate font-medium text-zinc-300">{String(value ?? "Missing")}</p>
+    </div>
+  );
+}
+
+function statusHint(approval: Approval) {
+  switch (approval.status) {
+    case "pending_review":
+    case "proposed":
+      return "Needs a human decision before anything is sent or written.";
+    case "approved":
+    case "edited":
+      return "Approved, but not executed yet.";
+    case "executed":
+      return "Executed. Check the agent run timeline for delivery details.";
+    case "rejected":
+      return "Rejected. The sensitive action was not executed.";
+    case "failed":
+      return "Execution failed. Review the detail page for the error.";
+    default:
+      return "No action needed right now.";
+  }
 }

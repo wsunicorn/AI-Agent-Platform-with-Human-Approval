@@ -70,7 +70,12 @@ class ApprovalService:
                 "agent_run_id": str(agent_run_id),
                 "tool_call_id": str(tool_call_id),
             },
-            metadata={"risk_reason": risk_reason},
+            metadata={
+                "agent_run_id": str(agent_run_id),
+                "tool_call_id": str(tool_call_id),
+                "tool_name": tool_name,
+                "risk_reason": risk_reason,
+            },
         )
         return approval
 
@@ -123,7 +128,12 @@ class ApprovalService:
             entity_id=str(approval.id),
             before_state=before_state,
             after_state=self.snapshot(approval),
-            metadata={"reviewer_comment": reviewer_comment},
+            metadata={
+                "agent_run_id": str(approval.agent_run_id),
+                "tool_call_id": str(approval.tool_call_id),
+                "tool_name": approval.tool_name,
+                "reviewer_comment": reviewer_comment,
+            },
         )
         return approval
 
@@ -161,7 +171,12 @@ class ApprovalService:
             entity_id=str(approval.id),
             before_state=before_state,
             after_state=self.snapshot(approval),
-            metadata={"reviewer_comment": reviewer_comment},
+            metadata={
+                "agent_run_id": str(approval.agent_run_id),
+                "tool_call_id": str(approval.tool_call_id),
+                "tool_name": approval.tool_name,
+                "reviewer_comment": reviewer_comment,
+            },
         )
         return approval
 
@@ -181,6 +196,11 @@ class ApprovalService:
             entity_id=str(approval.id),
             before_state=before_state,
             after_state=self.snapshot(approval),
+            metadata={
+                "agent_run_id": str(approval.agent_run_id),
+                "tool_call_id": str(approval.tool_call_id),
+                "tool_name": approval.tool_name,
+            },
         )
 
     async def mark_failed(
@@ -201,7 +221,12 @@ class ApprovalService:
             entity_id=str(approval.id),
             before_state=before_state,
             after_state=self.snapshot(approval),
-            metadata={"error_message": error_message},
+            metadata={
+                "agent_run_id": str(approval.agent_run_id),
+                "tool_call_id": str(approval.tool_call_id),
+                "tool_name": approval.tool_name,
+                "error_message": error_message,
+            },
         )
 
     def final_payload(self, approval: ApprovalRequest) -> dict[str, Any]:
@@ -216,5 +241,7 @@ class ApprovalService:
                 "reviewer_id": approval.reviewer_id,
                 "reviewed_at": approval.reviewed_at,
                 "executed_at": approval.executed_at,
+                "agent_run_id": approval.agent_run_id,
+                "tool_call_id": approval.tool_call_id,
             }
         )

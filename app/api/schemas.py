@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Generic, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 T = TypeVar("T")
 
@@ -82,7 +82,7 @@ class AgentRunOut(BaseModel):
     intent: str | None = None
     priority: str | None = None
     draft_response: str | None = None
-    final_output: str | None = None
+    final_output: dict[str, Any] | None = None
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -103,6 +103,8 @@ class ToolCallOut(BaseModel):
     error_message: str | None = None
     sensitivity: str | None = None
     duration_ms: float | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -120,8 +122,13 @@ class ApprovalOut(BaseModel):
     proposed_payload: dict[str, Any] = Field(default_factory=dict)
     edited_payload: dict[str, Any] | None = None
     risk_reason: str | None = None
-    reviewer: str | None = None
+    reviewer: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("reviewer", "reviewer_id"),
+    )
+    reviewer_comment: str | None = None
     reviewed_at: datetime | None = None
+    executed_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -190,6 +197,8 @@ class AuditLogOut(BaseModel):
     before_state: dict[str, Any] | None = None
     after_state: dict[str, Any] | None = None
     metadata_: dict[str, Any] | None = Field(None, serialization_alias="metadata")
+    message: str | None = None
+    severity: str = "info"
     created_at: datetime
 
     model_config = {"from_attributes": True}

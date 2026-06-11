@@ -353,6 +353,8 @@ class ToolExecutor:
                 "tool_name": tool_call.tool_name,
                 "status": tool_call.status,
                 "sensitivity": tool_call.sensitivity,
+                "input_payload": tool_call.input_payload,
+                "output_payload": tool_call.output_payload,
                 "retry_count": tool_call.retry_count,
                 "error_message": tool_call.error_message,
                 "started_at": tool_call.started_at,

@@ -15,6 +15,11 @@ class SupportAgentState(TypedDict, total=False):
 
     # Input.
     input_text: str
+    ticket_subject: str
+    ticket_customer_email: str
+    ticket_customer_name: str
+    ticket_priority: str
+    ticket_status: str
 
     # Classification outputs.
     intent: str
@@ -44,7 +49,7 @@ class SupportAgentState(TypedDict, total=False):
     tool_results: list[dict[str, Any]]
 
     # Output.
-    final_output: str
+    final_output: dict[str, Any]
 
     # Errors.
     errors: list[str]

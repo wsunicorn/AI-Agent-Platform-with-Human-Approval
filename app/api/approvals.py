@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -16,9 +15,23 @@ from app.api.schemas import (
     ApprovalOut,
 )
 from app.models.approval_request import ApprovalRequest
+from app.services.agent_run_summary import refresh_agent_run_summary
+from app.services.approval import ApprovalService, ApprovalStateError
 from app.tools.executor import ToolExecutor
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
+
+
+def _parse_approval_id(approval_id: str) -> UUID:
+    try:
+        return UUID(approval_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid approval id") from exc
+
+
+def _state_error(exc: ApprovalStateError) -> HTTPException:
+    status_code = 404 if "not found" in str(exc).lower() else 400
+    return HTTPException(status_code=status_code, detail=str(exc))
 
 
 @router.get("", response_model=ApiResponse[list[ApprovalOut]])
@@ -45,8 +58,9 @@ async def get_approval(
     approval_id: str,
     session: SessionDep,
 ) -> dict:
+    approval_uuid = _parse_approval_id(approval_id)
     result = await session.execute(
-        select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
+        select(ApprovalRequest).where(ApprovalRequest.id == approval_uuid)
     )
     approval = result.scalar_one_or_none()
     if not approval:
@@ -60,22 +74,17 @@ async def approve(
     body: ApprovalAction,
     session: SessionDep,
 ) -> dict:
-    result = await session.execute(
-        select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
-    )
-    approval = result.scalar_one_or_none()
-    if not approval:
-        raise HTTPException(status_code=404, detail="Approval not found")
-    if approval.status not in ("pending_review", "proposed", "edited"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot approve from status: {approval.status}",
+    service = ApprovalService(session)
+    try:
+        approval = await service.approve(
+            approval_id=_parse_approval_id(approval_id),
+            reviewer_id=body.reviewer,
+            reviewer_comment=body.reason,
         )
+    except ApprovalStateError as exc:
+        raise _state_error(exc) from exc
 
-    approval.status = "approved"
-    approval.edited_payload = approval.proposed_payload
-    approval.reviewer = body.reviewer
-    approval.reviewed_at = datetime.now(UTC)
+    await refresh_agent_run_summary(session, approval.agent_run_id)
     await session.commit()
     await session.refresh(approval)
     return {"data": ApprovalOut.model_validate(approval)}
@@ -87,21 +96,17 @@ async def reject(
     body: ApprovalAction,
     session: SessionDep,
 ) -> dict:
-    result = await session.execute(
-        select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
-    )
-    approval = result.scalar_one_or_none()
-    if not approval:
-        raise HTTPException(status_code=404, detail="Approval not found")
-    if approval.status not in ("pending_review", "proposed", "edited"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot reject from status: {approval.status}",
+    service = ApprovalService(session)
+    try:
+        approval = await service.reject(
+            approval_id=_parse_approval_id(approval_id),
+            reviewer_id=body.reviewer,
+            reviewer_comment=body.reason,
         )
+    except ApprovalStateError as exc:
+        raise _state_error(exc) from exc
 
-    approval.status = "rejected"
-    approval.reviewer = body.reviewer
-    approval.reviewed_at = datetime.now(UTC)
+    await refresh_agent_run_summary(session, approval.agent_run_id)
     await session.commit()
     await session.refresh(approval)
     return {"data": ApprovalOut.model_validate(approval)}
@@ -113,22 +118,18 @@ async def edit_payload(
     body: ApprovalEditAction,
     session: SessionDep,
 ) -> dict:
-    result = await session.execute(
-        select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
-    )
-    approval = result.scalar_one_or_none()
-    if not approval:
-        raise HTTPException(status_code=404, detail="Approval not found")
-    if approval.status not in ("pending_review", "proposed"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot edit from status: {approval.status}",
+    service = ApprovalService(session)
+    try:
+        approval = await service.approve(
+            approval_id=_parse_approval_id(approval_id),
+            reviewer_id=body.reviewer,
+            reviewer_comment=body.reason,
+            edited_payload=body.edited_payload,
         )
+    except ApprovalStateError as exc:
+        raise _state_error(exc) from exc
 
-    approval.status = "edited"
-    approval.edited_payload = body.edited_payload
-    approval.reviewer = body.reviewer
-    approval.reviewed_at = datetime.now(UTC)
+    await refresh_agent_run_summary(session, approval.agent_run_id)
     await session.commit()
     await session.refresh(approval)
     return {"data": ApprovalOut.model_validate(approval)}
@@ -139,8 +140,9 @@ async def execute_approved(
     approval_id: str,
     session: SessionDep,
 ) -> dict:
+    approval_uuid = _parse_approval_id(approval_id)
     result = await session.execute(
-        select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
+        select(ApprovalRequest).where(ApprovalRequest.id == approval_uuid)
     )
     approval = result.scalar_one_or_none()
     if not approval:
@@ -155,11 +157,14 @@ async def execute_approved(
     try:
         await executor.execute_approved(
             session=session,
-            approval_id=UUID(approval_id),
+            approval_id=approval_uuid,
             actor_id="human_admin",
         )
+        await refresh_agent_run_summary(session, approval.agent_run_id)
         await session.commit()
     except Exception as exc:
+        await refresh_agent_run_summary(session, approval.agent_run_id)
+        await session.commit()
         raise HTTPException(
             status_code=400,
             detail=f"Execution failed: {exc}",

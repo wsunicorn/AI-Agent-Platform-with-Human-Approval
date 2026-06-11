@@ -91,7 +91,10 @@ export const approveAction = (id: string, body: { reviewer?: string; reason?: st
 export const rejectAction = (id: string, body: { reviewer?: string; reason?: string }) =>
   request<Approval>(`/approvals/${id}/reject`, { method: "POST", body: JSON.stringify(body) });
 
-export const editAction = (id: string, body: { reviewer?: string; edited_payload: Record<string, unknown> }) =>
+export const editAction = (
+  id: string,
+  body: { reviewer?: string; edited_payload: Record<string, unknown>; reason?: string },
+) =>
   request<Approval>(`/approvals/${id}/edit`, { method: "POST", body: JSON.stringify(body) });
 
 export const executeAction = (id: string) =>

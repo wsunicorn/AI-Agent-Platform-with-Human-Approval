@@ -1,6 +1,13 @@
 /** Approval Detail page. */
 
-import { ArrowLeft, CheckCircle, XCircle, Pencil, Play } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  EnvelopeSimple,
+  Pencil,
+  Play,
+  XCircle,
+} from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
@@ -35,35 +42,39 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
 
   const approveMut = useMutation({
     mutationFn: () => approveAction(approvalId, { reviewer: "admin" }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["approval", approvalId] });
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-run", updated.agent_run_id] });
     },
   });
 
   const rejectMut = useMutation({
     mutationFn: () => rejectAction(approvalId, { reviewer: "admin" }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["approval", approvalId] });
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-run", updated.agent_run_id] });
     },
   });
 
   const editMut = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
       editAction(approvalId, { reviewer: "admin", edited_payload: payload }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ["approval", approvalId] });
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-run", updated.agent_run_id] });
     },
   });
 
   const executeMut = useMutation({
     mutationFn: () => executeAction(approvalId),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["approval", approvalId] });
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-run", updated.agent_run_id] });
     },
   });
 
@@ -181,6 +192,10 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
             </div>
           )}
 
+          {approval.tool_name === "send_email" && (
+            <EmailApprovalPreview payload={currentPayload} status={approval.status} />
+          )}
+
           {/* Payloads & Diff View */}
           <div className="grid gap-6 md:grid-cols-2">
             {/* Proposed Payload */}
@@ -275,16 +290,77 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
                 <dt className="text-zinc-500">Reviewer</dt>
                 <dd className="font-medium text-zinc-300">{approval.reviewer || "Not reviewed"}</dd>
               </div>
+              {approval.reviewer_comment && (
+                <div>
+                  <dt className="text-zinc-500">Reviewer Note</dt>
+                  <dd className="mt-1 text-zinc-300">{approval.reviewer_comment}</dd>
+                </div>
+              )}
               {approval.reviewed_at && (
                 <div className="flex justify-between">
                   <dt className="text-zinc-500">Reviewed At</dt>
                   <dd className="text-zinc-300"><TimeAgo date={approval.reviewed_at} /></dd>
                 </div>
               )}
+              {approval.executed_at && (
+                <div className="flex justify-between">
+                  <dt className="text-zinc-500">Executed At</dt>
+                  <dd className="text-zinc-300"><TimeAgo date={approval.executed_at} /></dd>
+                </div>
+              )}
             </dl>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function EmailApprovalPreview({
+  payload,
+  status,
+}: {
+  payload: Record<string, unknown>;
+  status: string;
+}) {
+  const to = String(payload.to ?? "");
+  const subject = String(payload.subject ?? "");
+  const body = String(payload.body ?? "");
+
+  return (
+    <section className="rounded-lg border border-teal-500/25 bg-teal-500/5 p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <EnvelopeSimple size={18} className="text-teal-300" weight="bold" />
+          <h2 className="text-sm font-semibold text-zinc-100">Email Preview</h2>
+        </div>
+        <span className="rounded-md border border-teal-500/25 bg-teal-500/10 px-2 py-0.5 text-xs font-medium text-teal-300">
+          {status.replace(/_/g, " ")}
+        </span>
+      </div>
+      <div className="grid gap-3 text-sm md:grid-cols-2">
+        <PreviewField label="To" value={to || "Missing recipient"} />
+        <PreviewField label="Subject" value={subject || "Missing subject"} />
+      </div>
+      <div className="mt-3">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+          Body
+        </p>
+        <p className="whitespace-pre-wrap rounded-md border border-zinc-800 bg-zinc-950 p-3 text-sm leading-relaxed text-zinc-300">
+          {body || "Missing body"}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function PreviewField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+        {label}
+      </p>
+      <p className="truncate text-sm text-zinc-300">{value}</p>
     </div>
   );
 }
