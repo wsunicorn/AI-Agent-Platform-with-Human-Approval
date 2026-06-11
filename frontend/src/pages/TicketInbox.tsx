@@ -15,7 +15,7 @@ interface TicketInboxProps {
 }
 
 export function TicketInbox({ onSelectTicket }: TicketInboxProps) {
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("new");
   const [showCreate, setShowCreate] = useState(false);
 
   const { data: tickets, isLoading, error, refetch } = useQuery({
@@ -56,7 +56,7 @@ export function TicketInbox({ onSelectTicket }: TicketInboxProps) {
 
       {/* Filters */}
       <div className="mb-4 flex gap-2">
-        {["", "new", "in_progress", "waiting_for_approval", "resolved"].map(
+        {["new", "in_progress", "waiting_for_approval", "resolved", ""].map(
           (s) => (
             <button
               key={s}
@@ -67,7 +67,7 @@ export function TicketInbox({ onSelectTicket }: TicketInboxProps) {
                   : "bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
               }`}
             >
-              {s || "All"}
+              {s ? s.replace(/_/g, " ") : "All"}
             </button>
           )
         )}

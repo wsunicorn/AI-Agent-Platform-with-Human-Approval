@@ -16,9 +16,11 @@ from app.models import (
     AgentRunStatus,
     ApprovalRequest,
     ApprovalStatus,
+    TicketStatus,
     ToolCall,
     ToolCallStatus,
 )
+from app.models.ticket import Ticket
 
 WAITING_APPROVAL_STATUSES = {
     ApprovalStatus.PROPOSED,
@@ -224,6 +226,47 @@ def build_agent_run_output(run: AgentRun) -> dict[str, Any]:
     return to_jsonable(output)
 
 
+def ticket_status_for_run(status: AgentRunStatus) -> TicketStatus:
+    if status == AgentRunStatus.WAITING_FOR_APPROVAL:
+        return TicketStatus.WAITING_FOR_APPROVAL
+    if status == AgentRunStatus.COMPLETED:
+        return TicketStatus.RESOLVED
+    if status == AgentRunStatus.CANCELLED:
+        return TicketStatus.TRIAGED
+    return TicketStatus.IN_PROGRESS
+
+
+def _first_text(value: Any) -> str | None:
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+async def sync_ticket_from_run(
+    session: AsyncSession,
+    run: AgentRun,
+    status: AgentRunStatus,
+    output: dict[str, Any],
+) -> None:
+    if run.ticket_id is None:
+        return
+
+    ticket = await session.get(Ticket, run.ticket_id)
+    if ticket is None:
+        return
+
+    ticket.status = ticket_status_for_run(status)
+    ticket.intent = _first_text(output.get("intent")) or ticket.intent
+    ticket.priority = _first_text(output.get("priority")) or ticket.priority
+    entities = output.get("entities")
+    if isinstance(entities, dict):
+        ticket.extracted_entities = entities
+        issue_type = _first_text(entities.get("issue_type"))
+        if issue_type:
+            ticket.issue_type = issue_type
+    ticket.updated_at = datetime.now(UTC)
+
+
 async def refresh_agent_run_summary(
     session: AsyncSession,
     run_id: uuid.UUID,
@@ -241,8 +284,9 @@ async def refresh_agent_run_summary(
         return None
 
     status = derive_agent_run_status(run)
+    output = build_agent_run_output(run)
     run.status = status
-    run.final_output = build_agent_run_output(run)
+    run.final_output = output
     run.updated_at = datetime.now(UTC)
     if status in {
         AgentRunStatus.COMPLETED,
@@ -250,5 +294,6 @@ async def refresh_agent_run_summary(
         AgentRunStatus.CANCELLED,
     }:
         run.completed_at = run.completed_at or datetime.now(UTC)
+    await sync_ticket_from_run(session, run, status, output)
     await session.flush()
     return run

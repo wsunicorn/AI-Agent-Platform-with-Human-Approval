@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import SessionDep
@@ -16,7 +17,7 @@ from app.api.schemas import (
     ApiResponse,
     ToolCallOut,
 )
-from app.models import AgentRunStatus
+from app.models import AgentRunStatus, TicketStatus
 from app.models.agent_run import AgentRun
 from app.models.ticket import Ticket
 from app.models.tool_call import ToolCall
@@ -26,6 +27,13 @@ from app.services.agent_run_summary import (
 )
 
 router = APIRouter(prefix="/agent-runs", tags=["agent-runs"])
+
+REUSABLE_RUN_STATUSES = {
+    AgentRunStatus.QUEUED,
+    AgentRunStatus.RUNNING,
+    AgentRunStatus.WAITING_FOR_APPROVAL,
+}
+STALE_RUN_AFTER = timedelta(minutes=5)
 
 
 def _agent_run_out(run: AgentRun) -> AgentRunOut:
@@ -46,10 +54,57 @@ def _agent_run_out(run: AgentRun) -> AgentRunOut:
     )
 
 
+async def _existing_live_ticket_run(
+    session: AsyncSession,
+    ticket_id: object | None,
+    now: datetime,
+) -> AgentRun | None:
+    if ticket_id is None:
+        return None
+
+    result = await session.execute(
+        select(AgentRun)
+        .where(
+            AgentRun.ticket_id == ticket_id,
+            AgentRun.mode == "support_agent",
+            AgentRun.status.in_([status.value for status in REUSABLE_RUN_STATUSES]),
+        )
+        .order_by(AgentRun.created_at.desc())
+        .limit(1)
+    )
+    existing = result.scalar_one_or_none()
+    if existing is None:
+        return None
+
+    if existing.status == AgentRunStatus.WAITING_FOR_APPROVAL:
+        return existing
+
+    freshness_window = now - timedelta(seconds=30)
+    if existing.updated_at and existing.updated_at >= freshness_window:
+        return existing
+
+    _mark_stale_run_failed(existing, now)
+    await session.flush()
+    return None
+
+
+def _mark_stale_run_failed(run: AgentRun, now: datetime) -> bool:
+    if run.status not in {AgentRunStatus.QUEUED, AgentRunStatus.RUNNING}:
+        return False
+    if run.updated_at and run.updated_at > now - STALE_RUN_AFTER:
+        return False
+
+    run.status = AgentRunStatus.FAILED
+    run.error_message = "Run timed out before producing progress. Start a new run from the ticket."
+    run.updated_at = now
+    run.completed_at = now
+    return True
+
+
 async def _mark_run_running(run_id: str) -> dict[str, str | None]:
     from app.core.database import async_session_factory
 
-    async with async_session_factory() as session:
+    async with async_session_factory()() as session:
         run = await session.scalar(select(AgentRun).where(AgentRun.id == run_id))
         if run is None:
             return {}
@@ -62,6 +117,8 @@ async def _mark_run_running(run_id: str) -> dict[str, str | None]:
         if run.ticket_id:
             ticket = await session.scalar(select(Ticket).where(Ticket.id == run.ticket_id))
             if ticket:
+                ticket.status = TicketStatus.IN_PROGRESS
+                ticket.updated_at = datetime.now(UTC)
                 ticket_context = {
                     "ticket_subject": ticket.subject,
                     "ticket_customer_email": ticket.customer_email,
@@ -92,7 +149,7 @@ async def _run_support_agent(run_id: str, input_text: str) -> None:
             }
         )
 
-        async with async_session_factory() as session:
+        async with async_session_factory()() as session:
             run = await session.scalar(select(AgentRun).where(AgentRun.id == run_id))
             if run:
                 run.status = (
@@ -123,12 +180,17 @@ async def _run_support_agent(run_id: str, input_text: str) -> None:
                 await refresh_agent_run_summary(session, run.id)
                 await session.commit()
     except Exception as exc:
-        async with async_session_factory() as session:
+        async with async_session_factory()() as session:
             run = await session.scalar(select(AgentRun).where(AgentRun.id == run_id))
             if run:
                 run.status = AgentRunStatus.FAILED
                 run.error_message = str(exc)
                 run.updated_at = datetime.now(UTC)
+                if run.ticket_id:
+                    ticket = await session.get(Ticket, run.ticket_id)
+                    if ticket:
+                        ticket.status = TicketStatus.IN_PROGRESS
+                        ticket.updated_at = datetime.now(UTC)
                 await session.commit()
 
 
@@ -141,7 +203,7 @@ async def _run_workflow_agent(run_id: str, input_text: str) -> None:
     compiled = graph.compile()
 
     try:
-        async with async_session_factory() as session:
+        async with async_session_factory()() as session:
             run = await session.scalar(select(AgentRun).where(AgentRun.id == run_id))
             if run:
                 run.status = AgentRunStatus.RUNNING
@@ -155,7 +217,7 @@ async def _run_workflow_agent(run_id: str, input_text: str) -> None:
             "input_text": input_text,
         })
 
-        async with async_session_factory() as session:
+        async with async_session_factory()() as session:
             db_result = await session.execute(
                 select(AgentRun).where(AgentRun.id == run_id)
             )
@@ -176,7 +238,7 @@ async def _run_workflow_agent(run_id: str, input_text: str) -> None:
                 await refresh_agent_run_summary(session, run.id)
                 await session.commit()
     except Exception as exc:
-        async with async_session_factory() as session:
+        async with async_session_factory()() as session:
             db_result = await session.execute(
                 select(AgentRun).where(AgentRun.id == run_id)
             )
@@ -195,6 +257,10 @@ async def create_support_run(
     session: SessionDep,
 ) -> dict:
     now = datetime.now(UTC)
+    existing = await _existing_live_ticket_run(session, body.ticket_id, now)
+    if existing is not None:
+        return {"data": _agent_run_out(existing)}
+
     run_id = uuid4()
     run = AgentRun(
         id=run_id,
@@ -242,6 +308,44 @@ async def create_workflow_run(
     return {"data": _agent_run_out(run)}
 
 
+@router.get("", response_model=ApiResponse[list[AgentRunOut]])
+async def list_agent_runs(
+    session: SessionDep,
+    ticket_id: str | None = None,
+    status: str | None = None,
+    limit: int = 25,
+    offset: int = 0,
+) -> dict:
+    query = (
+        select(AgentRun)
+        .options(
+            selectinload(AgentRun.tool_calls),
+            selectinload(AgentRun.approval_requests),
+        )
+        .order_by(AgentRun.created_at.desc())
+    )
+    if ticket_id:
+        query = query.where(AgentRun.ticket_id == ticket_id)
+    if status:
+        query = query.where(AgentRun.status == status)
+
+    result = await session.execute(query.limit(limit).offset(offset))
+    runs = result.scalars().all()
+    now = datetime.now(UTC)
+    changed = False
+    for run in runs:
+        changed = _mark_stale_run_failed(run, now) or changed
+        if run.tool_calls or run.approval_requests:
+            run.final_output = build_agent_run_output(run)
+    data = [_agent_run_out(run) for run in runs]
+    if changed:
+        await session.commit()
+    return {
+        "data": data,
+        "meta": {"limit": limit, "offset": offset},
+    }
+
+
 @router.get("/{run_id}", response_model=ApiResponse[AgentRunOut])
 async def get_agent_run(
     run_id: str,
@@ -258,9 +362,13 @@ async def get_agent_run(
     run = result.scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Agent run not found")
+    changed = _mark_stale_run_failed(run, datetime.now(UTC))
     if run.tool_calls or run.approval_requests:
         run.final_output = build_agent_run_output(run)
-    return {"data": _agent_run_out(run)}
+    data = _agent_run_out(run)
+    if changed:
+        await session.commit()
+    return {"data": data}
 
 
 @router.get("/{run_id}/tool-calls", response_model=ApiResponse[list[ToolCallOut]])

@@ -1,9 +1,9 @@
 /** Ticket Detail page. */
 
-import { ArrowLeft, Lightning, Play } from "@phosphor-icons/react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { ArrowLeft, ClockCounterClockwise, Lightning, Play } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createSupportRun, fetchTicket } from "../lib/api";
+import { createSupportRun, fetchAgentRuns, fetchTicket } from "../lib/api";
 import { StatusBadge, PriorityBadge } from "../components/ui/StatusBadge";
 import { ErrorState, LoadingState } from "../components/ui/States";
 import { TimeAgo } from "../components/ui/TimeAgo";
@@ -16,10 +16,22 @@ interface TicketDetailProps {
 }
 
 export function TicketDetail({ ticketId, onBack, onViewRun }: TicketDetailProps) {
+  const queryClient = useQueryClient();
   const { data: ticket, isLoading, error } = useQuery({
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicket(ticketId),
   });
+
+  const { data: runs, isLoading: isLoadingRuns } = useQuery({
+    queryKey: ["agent-runs", ticketId],
+    queryFn: () => fetchAgentRuns({ ticket_id: ticketId, limit: 10 }),
+    refetchInterval: 5000,
+  });
+
+  const latestRun = runs?.[0];
+  const activeRun = runs?.find((run) =>
+    ["queued", "running", "waiting_for_approval"].includes(run.status),
+  );
 
   const runMutation = useMutation({
     mutationFn: () =>
@@ -28,6 +40,9 @@ export function TicketDetail({ ticketId, onBack, onViewRun }: TicketDetailProps)
         ticket_id: ticketId,
       }),
     onSuccess: (run: AgentRun) => {
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-runs", ticketId] });
       onViewRun(run.id);
     },
   });
@@ -58,12 +73,15 @@ export function TicketDetail({ ticketId, onBack, onViewRun }: TicketDetailProps)
             </div>
           </div>
           <button
-            onClick={() => runMutation.mutate()}
+            onClick={() => {
+              if (activeRun) onViewRun(activeRun.id);
+              else runMutation.mutate();
+            }}
             disabled={runMutation.isPending}
             className="flex items-center gap-2 rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-500 active:scale-[0.98] disabled:opacity-50"
           >
             <Play size={16} weight="fill" />
-            {runMutation.isPending ? "Starting..." : "Run Agent"}
+            {buttonLabel(runMutation.isPending, activeRun)}
           </button>
         </div>
       </div>
@@ -106,6 +124,51 @@ export function TicketDetail({ ticketId, onBack, onViewRun }: TicketDetailProps)
               {ticket.body}
             </p>
           </section>
+
+          <section className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-zinc-300">Agent Runs</h2>
+              {latestRun && (
+                <button
+                  onClick={() => onViewRun(latestRun.id)}
+                  className="text-xs font-medium text-teal-300 hover:text-teal-200"
+                >
+                  View latest timeline
+                </button>
+              )}
+            </div>
+            {isLoadingRuns ? (
+              <p className="text-sm text-zinc-500">Loading run history...</p>
+            ) : !runs?.length ? (
+              <p className="text-sm text-zinc-500">
+                No agent run yet. Start one to draft and review the customer response.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {runs.map((run) => (
+                  <button
+                    key={run.id}
+                    onClick={() => onViewRun(run.id)}
+                    className="flex w-full items-center justify-between gap-3 rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-left transition-colors hover:border-zinc-700"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <ClockCounterClockwise size={14} className="text-zinc-500" />
+                        <span className="font-mono text-xs text-zinc-400">
+                          {run.id.slice(0, 8)}
+                        </span>
+                        <StatusBadge status={run.status} />
+                      </div>
+                      <p className="mt-1 truncate text-xs text-zinc-500">
+                        {run.final_output?.summary ?? run.error_message ?? "Preparing run summary"}
+                      </p>
+                    </div>
+                    <TimeAgo date={run.updated_at} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
 
         {/* Sidebar info */}
@@ -127,4 +190,11 @@ export function TicketDetail({ ticketId, onBack, onViewRun }: TicketDetailProps)
       </div>
     </div>
   );
+}
+
+function buttonLabel(isStarting: boolean, activeRun?: AgentRun) {
+  if (isStarting) return "Starting...";
+  if (!activeRun) return "Run Agent";
+  if (activeRun.status === "waiting_for_approval") return "Review Current Run";
+  return "View Running Agent";
 }

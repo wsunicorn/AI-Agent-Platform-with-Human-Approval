@@ -34,6 +34,10 @@ export function App() {
         <ApprovalDetail
           approvalId={activeApprovalId}
           onBack={() => setActiveApprovalId(null)}
+          onViewRun={(runId) => {
+            setActiveApprovalId(null);
+            setActiveAgentRunId(runId);
+          }}
         />
       );
     }

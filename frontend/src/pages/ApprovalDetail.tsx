@@ -27,9 +27,10 @@ import type { Approval } from "../types/models";
 interface ApprovalDetailProps {
   approvalId: string;
   onBack: () => void;
+  onViewRun?: (runId: string) => void;
 }
 
-export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
+export function ApprovalDetail({ approvalId, onBack, onViewRun }: ApprovalDetailProps) {
   const queryClient = useQueryClient();
   const [editedPayloadStr, setEditedPayloadStr] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
@@ -171,6 +172,15 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
               >
                 <Play size={16} weight="fill" />
                 Execute Action
+              </button>
+            )}
+            {approval.status === "executed" && onViewRun && (
+              <button
+                onClick={() => onViewRun(approval.agent_run_id)}
+                className="flex items-center gap-1.5 rounded-md border border-teal-500/30 bg-teal-500/10 px-4 py-2 text-sm font-medium text-teal-300 hover:bg-teal-500/20"
+              >
+                <Play size={16} weight="fill" />
+                View Run Timeline
               </button>
             )}
           </div>

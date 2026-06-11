@@ -68,6 +68,15 @@ export const createWorkflowRun = (body: { input_text: string }) =>
 
 export const fetchAgentRun = (id: string) => request<AgentRun>(`/agent-runs/${id}`);
 
+export const fetchAgentRuns = (params?: { ticket_id?: string; status?: string; limit?: number }) => {
+  const search = new URLSearchParams();
+  if (params?.ticket_id) search.set("ticket_id", params.ticket_id);
+  if (params?.status) search.set("status", params.status);
+  if (params?.limit) search.set("limit", String(params.limit));
+  const qs = search.toString();
+  return request<AgentRun[]>(`/agent-runs${qs ? `?${qs}` : ""}`);
+};
+
 export const fetchToolCalls = (runId: string) => request<ToolCall[]>(`/agent-runs/${runId}/tool-calls`);
 
 export const cancelAgentRun = (id: string) =>
