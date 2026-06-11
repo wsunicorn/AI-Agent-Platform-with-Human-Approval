@@ -237,3 +237,7 @@ class ToolConfigOut(BaseModel):
 class ToolConfigUpdate(BaseModel):
     sensitivity: str | None = None
     enabled: bool | None = None
+
+
+class GuardrailPolicyUpdate(BaseModel):
+    tools: list[str] = Field(default_factory=list)

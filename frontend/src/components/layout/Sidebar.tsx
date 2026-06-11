@@ -1,8 +1,6 @@
 /** Sidebar navigation component. */
 
 import {
-  ChartBar,
-  ClipboardText,
   Database,
   Envelope,
   Gear,

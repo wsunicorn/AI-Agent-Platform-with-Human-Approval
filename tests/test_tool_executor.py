@@ -3,10 +3,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.guardrails import PolicyAction, PolicyDecision, PolicyEngine, PolicyReason
-from app.models import ActorType, AgentRun, ApprovalRequest, ApprovalStatus, Sensitivity, ToolCall, ToolCallStatus
-from app.tools.errors import ToolApprovalRequiredError, ToolBlockedError, ToolNotRegisteredError
-from app.tools.executor import ToolExecutor, ToolExecutionResult
+from app.guardrails import PolicyAction, PolicyDecision, PolicyReason
+from app.models import (
+    AgentRun,
+    Sensitivity,
+    ToolCall,
+    ToolCallStatus,
+)
+from app.tools.errors import ToolBlockedError, ToolNotRegisteredError
+from app.tools.executor import ToolExecutor
 from app.tools.registry import ToolDefinition, ToolRegistry
 
 
@@ -32,6 +37,11 @@ def setup_mock_session(session: AsyncMock) -> None:
             return AgentRun(id=ident, status="running")
         return None
     session.get.side_effect = session_get_side_effect
+
+
+def tool_call_with_id(*args, **kwargs) -> ToolCall:
+    kwargs.setdefault("id", uuid.uuid4())
+    return ToolCall(*args, **kwargs)
 
 
 @pytest.mark.asyncio
@@ -94,7 +104,7 @@ async def test_execute_blocked_tool() -> None:
     executor = ToolExecutor(registry=registry, audit=audit, policy=policy)
     agent_run_id = uuid.uuid4()
 
-    with patch("app.tools.executor.ToolCall", side_effect=lambda *a, **k: ToolCall(*a, id=k.pop("id", uuid.uuid4()), **k)):
+    with patch("app.tools.executor.ToolCall", side_effect=tool_call_with_id):
         with pytest.raises(ToolBlockedError):
             await executor.execute(
                 session=session,
@@ -135,7 +145,7 @@ async def test_execute_approval_required_tool() -> None:
     executor = ToolExecutor(registry=registry, audit=audit, policy=policy)
     agent_run_id = uuid.uuid4()
 
-    with patch("app.tools.executor.ToolCall", side_effect=lambda *a, **k: ToolCall(*a, id=k.pop("id", uuid.uuid4()), **k)):
+    with patch("app.tools.executor.ToolCall", side_effect=tool_call_with_id):
         result = await executor.execute(
             session=session,
             agent_run_id=agent_run_id,

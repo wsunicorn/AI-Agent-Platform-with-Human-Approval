@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_session
+from app.api.dependencies import SessionDep
 from app.api.schemas import ApiResponse, TicketCreate, TicketOut, TicketUpdate
 from app.models.ticket import Ticket
 
@@ -19,9 +18,9 @@ router = APIRouter(prefix="/tickets", tags=["tickets"])
 @router.post("", response_model=ApiResponse[TicketOut], status_code=201)
 async def create_ticket(
     body: TicketCreate,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ticket = Ticket(
         id=uuid4(),
         subject=body.subject,
@@ -42,11 +41,11 @@ async def create_ticket(
 
 @router.get("", response_model=ApiResponse[list[TicketOut]])
 async def list_tickets(
+    session: SessionDep,
     status: str | None = None,
     priority: str | None = None,
     limit: int = 50,
     offset: int = 0,
-    session: AsyncSession = Depends(get_session),
 ) -> dict:
     query = select(Ticket).order_by(Ticket.created_at.desc())
     if status:
@@ -65,7 +64,7 @@ async def list_tickets(
 @router.get("/{ticket_id}", response_model=ApiResponse[TicketOut])
 async def get_ticket(
     ticket_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(Ticket).where(Ticket.id == ticket_id)
@@ -80,7 +79,7 @@ async def get_ticket(
 async def update_ticket(
     ticket_id: str,
     body: TicketUpdate,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(Ticket).where(Ticket.id == ticket_id)
@@ -92,7 +91,7 @@ async def update_ticket(
     update_data = body.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(ticket, key, value)
-    ticket.updated_at = datetime.now(timezone.utc)
+    ticket.updated_at = datetime.now(UTC)
 
     await session.commit()
     await session.refresh(ticket)

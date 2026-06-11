@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_session
+from app.api.dependencies import SessionDep
 from app.api.schemas import (
     ApiResponse,
     ApprovalAction,
@@ -16,16 +16,17 @@ from app.api.schemas import (
     ApprovalOut,
 )
 from app.models.approval_request import ApprovalRequest
+from app.tools.executor import ToolExecutor
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
 @router.get("", response_model=ApiResponse[list[ApprovalOut]])
 async def list_approvals(
+    session: SessionDep,
     status: str | None = None,
     limit: int = 50,
     offset: int = 0,
-    session: AsyncSession = Depends(get_session),
 ) -> dict:
     query = select(ApprovalRequest).order_by(ApprovalRequest.created_at.desc())
     if status:
@@ -42,7 +43,7 @@ async def list_approvals(
 @router.get("/{approval_id}", response_model=ApiResponse[ApprovalOut])
 async def get_approval(
     approval_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
@@ -57,7 +58,7 @@ async def get_approval(
 async def approve(
     approval_id: str,
     body: ApprovalAction,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
@@ -74,7 +75,7 @@ async def approve(
     approval.status = "approved"
     approval.edited_payload = approval.proposed_payload
     approval.reviewer = body.reviewer
-    approval.reviewed_at = datetime.now(timezone.utc)
+    approval.reviewed_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(approval)
     return {"data": ApprovalOut.model_validate(approval)}
@@ -84,7 +85,7 @@ async def approve(
 async def reject(
     approval_id: str,
     body: ApprovalAction,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
@@ -100,7 +101,7 @@ async def reject(
 
     approval.status = "rejected"
     approval.reviewer = body.reviewer
-    approval.reviewed_at = datetime.now(timezone.utc)
+    approval.reviewed_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(approval)
     return {"data": ApprovalOut.model_validate(approval)}
@@ -110,7 +111,7 @@ async def reject(
 async def edit_payload(
     approval_id: str,
     body: ApprovalEditAction,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
@@ -127,7 +128,7 @@ async def edit_payload(
     approval.status = "edited"
     approval.edited_payload = body.edited_payload
     approval.reviewer = body.reviewer
-    approval.reviewed_at = datetime.now(timezone.utc)
+    approval.reviewed_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(approval)
     return {"data": ApprovalOut.model_validate(approval)}
@@ -136,11 +137,8 @@ async def edit_payload(
 @router.post("/{approval_id}/execute", response_model=ApiResponse[ApprovalOut])
 async def execute_approved(
     approval_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
-    import uuid
-    from app.tools.executor import ToolExecutor
-
     result = await session.execute(
         select(ApprovalRequest).where(ApprovalRequest.id == approval_id)
     )
@@ -157,7 +155,7 @@ async def execute_approved(
     try:
         await executor.execute_approved(
             session=session,
-            approval_id=uuid.UUID(approval_id),
+            approval_id=UUID(approval_id),
             actor_id="human_admin",
         )
         await session.commit()
@@ -165,7 +163,7 @@ async def execute_approved(
         raise HTTPException(
             status_code=400,
             detail=f"Execution failed: {exc}",
-        )
+        ) from exc
 
     await session.refresh(approval)
     return {"data": ApprovalOut.model_validate(approval)}

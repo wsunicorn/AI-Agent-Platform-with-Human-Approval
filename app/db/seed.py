@@ -196,18 +196,22 @@ async def seed_knowledge(session: AsyncSession) -> None:
             "tags": ["doi_tra", "exchange", "return", "support", "vietnamese"],
             "document_type": KnowledgeDocumentType.POLICY,
             "content": (
-                "Khách hàng có quyền đổi hoặc trả sản phẩm trong vòng 30 ngày kể từ ngày nhận hàng thành công. "
-                "Sản phẩm đổi trả phải còn nguyên vẹn, chưa qua sử dụng, và còn nguyên tem mác. "
-                "Nếu hoàn tiền, hệ thống thực hiện hoàn tiền trong vòng 5-7 ngày làm việc sau khi nhận hàng hoàn trả."
+                "Khách hàng có quyền đổi hoặc trả sản phẩm trong vòng 30 ngày kể từ "
+                "ngày nhận hàng thành công. Sản phẩm đổi trả phải còn nguyên vẹn, "
+                "chưa qua sử dụng, và còn nguyên tem mác. Nếu hoàn tiền, hệ thống "
+                "thực hiện hoàn tiền trong vòng 5-7 ngày làm việc sau khi nhận hàng "
+                "hoàn trả."
             ),
             "chunks": [
                 (
-                    "Khách hàng có quyền đổi hoặc trả sản phẩm trong vòng 30 ngày kể từ ngày nhận hàng thành công. "
-                    "Các trường hợp gửi yêu cầu sau thời hạn 30 ngày sẽ không được hệ thống chấp nhận giải quyết."
+                    "Khách hàng có quyền đổi hoặc trả sản phẩm trong vòng 30 ngày kể từ "
+                    "ngày nhận hàng thành công. Các trường hợp gửi yêu cầu sau thời hạn "
+                    "30 ngày sẽ không được hệ thống chấp nhận giải quyết."
                 ),
                 (
-                    "Sản phẩm đổi trả phải còn nguyên vẹn, chưa qua sử dụng, và còn nguyên tem mác, hộp đựng gốc. "
-                    "Nếu hoàn tiền, hệ thống thực hiện hoàn tiền trong vòng 5-7 ngày trả về phương thức thanh toán ban đầu."
+                    "Sản phẩm đổi trả phải còn nguyên vẹn, chưa qua sử dụng, và còn "
+                    "nguyên tem mác, hộp đựng gốc. Nếu hoàn tiền, hệ thống thực hiện "
+                    "hoàn tiền trong vòng 5-7 ngày trả về phương thức thanh toán ban đầu."
                 ),
             ],
         },

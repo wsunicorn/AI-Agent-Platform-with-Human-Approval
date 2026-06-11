@@ -5,6 +5,17 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@uiw/") || id.includes("@codemirror/")) return "editor";
+          return "vendor";
+        },
+      },
+    },
+  },
   server: {
     host: "0.0.0.0",
     port: 5173,
@@ -16,4 +27,3 @@ export default defineConfig({
     exclude: ["**/e2e/**", "node_modules/**"],
   },
 });
-

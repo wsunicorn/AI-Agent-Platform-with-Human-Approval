@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import structlog
@@ -49,7 +49,7 @@ async def ingest_document(
         return existing_doc
 
     doc_id = uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     doc = KnowledgeDocument(
         id=doc_id,
@@ -88,13 +88,13 @@ async def ingest_document(
         for chunk in chunks_with_embeddings:
             session.add(chunk)
 
-        doc.updated_at = datetime.now(timezone.utc)
+        doc.updated_at = datetime.now(UTC)
 
         await session.flush()
         logger.info("document_ingestion_complete", doc_id=str(doc_id))
 
     except Exception as exc:
-        doc.updated_at = datetime.now(timezone.utc)
+        doc.updated_at = datetime.now(UTC)
         await session.flush()
         logger.error(
             "document_ingestion_failed",

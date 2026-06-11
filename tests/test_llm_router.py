@@ -1,8 +1,9 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.core.config import Settings
-from app.llm.provider import LLMRequest, LLMResponse, LLMMessage
+from app.llm.provider import LLMMessage, LLMRequest, LLMResponse
 from app.llm.router import ModelRouter, TaskPurpose, reset_model_router
 
 
@@ -55,7 +56,10 @@ async def test_router_complete_fallback_chain() -> None:
         with patch("app.llm.router.GeminiProvider", return_value=gemini_mock):
             with patch("app.llm.router.OllamaProvider", return_value=ollama_mock):
                 router = ModelRouter()
-                request = LLMRequest(messages=[LLMMessage(role="user", content="Hi")], model="default")
+                request = LLMRequest(
+                    messages=[LLMMessage(role="user", content="Hi")],
+                    model="default",
+                )
                 response = await router.complete(request, purpose=TaskPurpose.DEFAULT)
 
                 assert response.content == "Hello from Ollama"
@@ -80,8 +84,16 @@ async def test_pii_redaction() -> None:
             with patch("app.llm.router.OllamaProvider", spec=True):
                 router = ModelRouter()
                 request = LLMRequest(
-                    messages=[LLMMessage(role="user", content="My email is test@example.com and phone is 123-456-7890.")],
-                    model="default"
+                    messages=[
+                        LLMMessage(
+                            role="user",
+                            content=(
+                                "My email is test@example.com and phone is "
+                                "123-456-7890."
+                            ),
+                        )
+                    ],
+                    model="default",
                 )
                 await router.complete(request, purpose=TaskPurpose.DEFAULT, redact_pii=True)
 

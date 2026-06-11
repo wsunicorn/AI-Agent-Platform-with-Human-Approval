@@ -2,7 +2,7 @@
 
 import { ArrowLeft, CheckCircle, XCircle, Pencil, Play } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 
 import {
@@ -32,14 +32,6 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
     queryKey: ["approval", approvalId],
     queryFn: () => fetchApproval(approvalId),
   });
-
-  // Initialize edited payload string when approval data is loaded
-  useEffect(() => {
-    if (approval) {
-      const payload = approval.edited_payload || approval.proposed_payload;
-      setEditedPayloadStr(JSON.stringify(payload, null, 2));
-    }
-  }, [approval]);
 
   const approveMut = useMutation({
     mutationFn: () => approveAction(approvalId, { reviewer: "admin" }),
@@ -78,9 +70,24 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
   if (isLoading) return <LoadingState message="Loading approval request..." />;
   if (error || !approval) return <ErrorState message="Failed to load approval details" />;
 
+  const currentPayload = approval.edited_payload || approval.proposed_payload;
+  const currentPayloadStr = JSON.stringify(currentPayload, null, 2);
+
+  const handleStartEditing = () => {
+    setEditedPayloadStr(currentPayloadStr);
+    setJsonError(null);
+    setIsEditing(true);
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditing(false);
+    setJsonError(null);
+    setEditedPayloadStr(currentPayloadStr);
+  };
+
   const handleSaveEdit = () => {
     try {
-      const parsed = JSON.parse(editedPayloadStr);
+      const parsed = JSON.parse(editedPayloadStr) as Record<string, unknown>;
       setJsonError(null);
       editMut.mutate(parsed);
     } catch (err) {
@@ -128,7 +135,7 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
                   Approve
                 </button>
                 <button
-                  onClick={() => setIsEditing(true)}
+                  onClick={handleStartEditing}
                   className="flex items-center gap-1.5 rounded-md bg-zinc-850 border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800"
                 >
                   <Pencil size={16} />
@@ -202,11 +209,7 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
                       Save
                     </button>
                     <button
-                      onClick={() => {
-                        setIsEditing(false);
-                        const payload = approval.edited_payload || approval.proposed_payload;
-                        setEditedPayloadStr(JSON.stringify(payload, null, 2));
-                      }}
+                      onClick={handleCancelEditing}
                       className="rounded bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700"
                     >
                       Cancel
@@ -231,7 +234,7 @@ export function ApprovalDetail({ approvalId, onBack }: ApprovalDetailProps) {
                 </div>
               ) : (
                 <pre className="font-mono text-xs text-zinc-400 bg-zinc-950 p-3 rounded-md border border-zinc-850 overflow-x-auto max-h-96">
-                  {JSON.stringify(approval.edited_payload || approval.proposed_payload, null, 2)}
+                  {currentPayloadStr}
                 </pre>
               )}
             </div>
@@ -293,8 +296,8 @@ interface DiffLine {
 }
 
 function getPayloadDiff(
-  original: Record<string, any>,
-  edited: Record<string, any>
+  original: Record<string, unknown>,
+  edited: Record<string, unknown>,
 ): DiffLine[] {
   const lines: DiffLine[] = [];
   const allKeys = Array.from(new Set([...Object.keys(original), ...Object.keys(edited)]));

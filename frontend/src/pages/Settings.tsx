@@ -1,6 +1,6 @@
 /** Settings page: Models, Tools, and Guardrails. */
 
-import { Gear, Robot, Wrench, ShieldCheck } from "@phosphor-icons/react";
+import { Robot, Wrench, ShieldCheck } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 

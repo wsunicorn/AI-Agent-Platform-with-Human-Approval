@@ -38,7 +38,10 @@ async def classify_intent(state: SupportAgentState) -> dict[str, Any]:
 Message: {text}
 
 Return a JSON object with:
-- "intent": one of ["refund_request", "product_issue", "billing_inquiry", "account_issue", "general_inquiry", "escalation", "feedback", "data_request"]
+- "intent": one of [
+  "refund_request", "product_issue", "billing_inquiry", "account_issue",
+  "general_inquiry", "escalation", "feedback", "data_request"
+]
 - "confidence": a float between 0.0 and 1.0
 
 Only return the JSON object."""
@@ -326,7 +329,7 @@ demonstrate capability."""
 
 async def policy_gate(state: dict[str, Any]) -> dict[str, Any]:
     """Classify each planned action through the guardrail policy engine."""
-    from app.guardrails.policy import PolicyEngine, PolicyAction
+    from app.guardrails.policy import PolicyAction, PolicyEngine
     from app.tools.registry import tool_registry
 
     engine = PolicyEngine()
@@ -374,9 +377,10 @@ async def policy_gate(state: dict[str, Any]) -> dict[str, Any]:
 
 async def execute_safe_tools(state: dict[str, Any]) -> dict[str, Any]:
     """Execute tools classified as safe."""
-    from app.tools.executor import ToolExecutor
-    from app.core.database import async_session_factory
     import uuid
+
+    from app.core.database import async_session_factory
+    from app.tools.executor import ToolExecutor
 
     executor = ToolExecutor()
     safe_actions = state.get("safe_actions", [])
@@ -420,9 +424,10 @@ async def execute_safe_tools(state: dict[str, Any]) -> dict[str, Any]:
 
 async def create_approval_requests(state: dict[str, Any]) -> dict[str, Any]:
     """Create approval requests for actions that require human approval."""
-    from app.tools.executor import ToolExecutor
-    from app.core.database import async_session_factory
     import uuid
+
+    from app.core.database import async_session_factory
+    from app.tools.executor import ToolExecutor
 
     approval_actions = state.get("approval_required_actions", [])
     approval_requests: list[dict] = []
@@ -473,9 +478,10 @@ async def create_approval_requests(state: dict[str, Any]) -> dict[str, Any]:
 
 async def execute_approved_tools(state: dict[str, Any]) -> dict[str, Any]:
     """Execute tools that have been approved by a human reviewer."""
-    from app.tools.executor import ToolExecutor
-    from app.core.database import async_session_factory
     import uuid
+
+    from app.core.database import async_session_factory
+    from app.tools.executor import ToolExecutor
 
     executor = ToolExecutor()
     approved = state.get("approved_actions", [])

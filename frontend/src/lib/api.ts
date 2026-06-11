@@ -1,6 +1,5 @@
 /** Full API client for all backend endpoints. */
 
-import type { ApiResponse } from "../types/api";
 import type {
   AgentRun,
   Approval,

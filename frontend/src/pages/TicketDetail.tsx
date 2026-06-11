@@ -7,7 +7,7 @@ import { createSupportRun, fetchTicket } from "../lib/api";
 import { StatusBadge, PriorityBadge } from "../components/ui/StatusBadge";
 import { ErrorState, LoadingState } from "../components/ui/States";
 import { TimeAgo } from "../components/ui/TimeAgo";
-import type { AgentRun, Ticket } from "../types/models";
+import type { AgentRun } from "../types/models";
 
 interface TicketDetailProps {
   ticketId: string;

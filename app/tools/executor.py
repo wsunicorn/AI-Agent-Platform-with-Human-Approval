@@ -295,7 +295,10 @@ class ToolExecutor:
                 entity_id=str(tool_call.id),
                 before_state=before_state,
                 after_state=self.snapshot(tool_call),
-                metadata={"attempts": error.attempts, "agent_run_id": str(tool_call.agent_run_id)},
+                metadata={
+                    "attempts": error.attempts,
+                    "agent_run_id": str(tool_call.agent_run_id),
+                },
             )
             return ToolExecutionResult(
                 tool_call_id=tool_call.id,
@@ -317,7 +320,10 @@ class ToolExecutor:
                 entity_id=str(tool_call.id),
                 before_state=before_state,
                 after_state=self.snapshot(tool_call),
-                metadata={"error_type": type(error).__name__, "agent_run_id": str(tool_call.agent_run_id)},
+                metadata={
+                    "error_type": type(error).__name__,
+                    "agent_run_id": str(tool_call.agent_run_id),
+                },
             )
             return ToolExecutionResult(
                 tool_call_id=tool_call.id,

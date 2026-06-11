@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_session
+from app.api.dependencies import SessionDep
 from app.api.schemas import (
     ApiResponse,
+    GuardrailPolicyUpdate,
     ModelConfigCreate,
     ModelConfigOut,
     ModelConfigUpdate,
@@ -21,7 +21,23 @@ from app.api.schemas import (
 from app.models.model_config import ModelConfig
 from app.tools.registry import tool_registry
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = APIRouter(tags=["settings"])
+
+
+def guardrail_policy_snapshot() -> dict:
+    from app.guardrails.catalog import (
+        APPROVAL_REQUIRED_TOOLS,
+        BLOCKED_TOOLS,
+        SAFE_TOOLS,
+        TOOL_SENSITIVITY_CATALOG,
+    )
+
+    return {
+        "safe_tools": list(SAFE_TOOLS),
+        "approval_required_tools": list(APPROVAL_REQUIRED_TOOLS),
+        "blocked_tools": list(BLOCKED_TOOLS),
+        "catalog": dict(TOOL_SENSITIVITY_CATALOG),
+    }
 
 
 # ── Model Configs ────────────────────────────────────────────────────
@@ -29,7 +45,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 @router.get("/model-configs", response_model=ApiResponse[list[ModelConfigOut]])
 async def list_model_configs(
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(ModelConfig).order_by(ModelConfig.purpose)
@@ -45,9 +61,9 @@ async def list_model_configs(
 )
 async def create_model_config(
     body: ModelConfigCreate,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     config = ModelConfig(
         id=uuid4(),
         provider=body.provider,
@@ -73,7 +89,7 @@ async def create_model_config(
 async def update_model_config(
     config_id: str,
     body: ModelConfigUpdate,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(ModelConfig).where(ModelConfig.id == config_id)
@@ -85,7 +101,7 @@ async def update_model_config(
     update_data = body.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(config, key, value)
-    config.updated_at = datetime.now(timezone.utc)
+    config.updated_at = datetime.now(UTC)
 
     await session.commit()
     await session.refresh(config)
@@ -138,18 +154,26 @@ async def update_tool(tool_name: str, body: ToolConfigUpdate) -> dict:
 
 @router.get("/guardrail-policies", response_model=ApiResponse[dict])
 async def get_guardrail_policies() -> dict:
-    from app.guardrails.catalog import (
-        APPROVAL_REQUIRED_TOOLS,
-        BLOCKED_TOOLS,
-        SAFE_TOOLS,
-        TOOL_SENSITIVITY_CATALOG,
-    )
+    return {"data": guardrail_policy_snapshot()}
 
-    return {
-        "data": {
-            "safe_tools": list(SAFE_TOOLS),
-            "approval_required_tools": list(APPROVAL_REQUIRED_TOOLS),
-            "blocked_tools": list(BLOCKED_TOOLS),
-            "catalog": dict(TOOL_SENSITIVITY_CATALOG),
-        }
+
+@router.patch("/guardrail-policies/{policy_id}", response_model=ApiResponse[dict])
+async def update_guardrail_policy(
+    policy_id: str,
+    body: GuardrailPolicyUpdate,
+) -> dict:
+    from app.guardrails.catalog import TOOL_SENSITIVITY_CATALOG
+
+    policy_to_sensitivity = {
+        "safe_tools": "safe",
+        "approval_required_tools": "approval_required",
+        "blocked_tools": "blocked",
     }
+    sensitivity = policy_to_sensitivity.get(policy_id)
+    if sensitivity is None:
+        raise HTTPException(status_code=404, detail="Guardrail policy not found")
+
+    for tool_name in body.tools:
+        TOOL_SENSITIVITY_CATALOG[tool_name] = sensitivity
+
+    return {"data": guardrail_policy_snapshot()}

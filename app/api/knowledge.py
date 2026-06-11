@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_session
+from app.api.dependencies import SessionDep
 from app.api.schemas import (
     ApiResponse,
     KnowledgeDocumentCreate,
@@ -22,7 +21,7 @@ router = APIRouter(prefix="/knowledge-documents", tags=["knowledge"])
 @router.post("", response_model=ApiResponse[KnowledgeDocumentOut], status_code=201)
 async def create_document(
     body: KnowledgeDocumentCreate,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     from app.retrieval.ingestion import ingest_document
 
@@ -40,10 +39,10 @@ async def create_document(
 
 @router.get("", response_model=ApiResponse[list[KnowledgeDocumentOut]])
 async def list_documents(
+    session: SessionDep,
     doc_type: str | None = None,
     limit: int = 50,
     offset: int = 0,
-    session: AsyncSession = Depends(get_session),
 ) -> dict:
     query = select(KnowledgeDocument).order_by(
         KnowledgeDocument.created_at.desc()
@@ -62,7 +61,7 @@ async def list_documents(
 @router.get("/{document_id}", response_model=ApiResponse[KnowledgeDocumentOut])
 async def get_document(
     document_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(KnowledgeDocument).where(KnowledgeDocument.id == document_id)
@@ -76,7 +75,7 @@ async def get_document(
 @router.delete("/{document_id}", status_code=204)
 async def delete_document(
     document_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> None:
     result = await session.execute(
         select(KnowledgeDocument).where(KnowledgeDocument.id == document_id)
@@ -91,7 +90,7 @@ async def delete_document(
 @router.post("/search", response_model=ApiResponse[list[KnowledgeSearchResult]])
 async def search_knowledge(
     body: KnowledgeSearchRequest,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     from app.retrieval.search import hybrid_search
 

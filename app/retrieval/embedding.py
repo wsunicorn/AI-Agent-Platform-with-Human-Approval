@@ -34,7 +34,7 @@ async def generate_chunk_embeddings(
         try:
             response = await router.embed(texts, purpose=TaskPurpose.EMBEDDING)
 
-            for chunk, embedding in zip(batch, response.embeddings):
+            for chunk, embedding in zip(batch, response.embeddings, strict=False):
                 chunk.embedding = embedding
 
             logger.info(

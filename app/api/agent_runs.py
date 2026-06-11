@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_session
+from app.api.dependencies import SessionDep
 from app.api.schemas import (
     AgentRunCreate,
     AgentRunOut,
@@ -51,7 +50,7 @@ async def _run_support_agent(run_id: str, input_text: str) -> None:
                 run.priority = result.get("priority")
                 run.draft_response = result.get("draft_response")
                 run.final_output = result.get("final_output")
-                run.updated_at = datetime.now(timezone.utc)
+                run.updated_at = datetime.now(UTC)
                 await session.commit()
     except Exception as exc:
         async with async_session_factory() as session:
@@ -62,7 +61,7 @@ async def _run_support_agent(run_id: str, input_text: str) -> None:
             if run:
                 run.status = "failed"
                 run.error_message = str(exc)
-                run.updated_at = datetime.now(timezone.utc)
+                run.updated_at = datetime.now(UTC)
                 await session.commit()
 
 
@@ -92,7 +91,7 @@ async def _run_workflow_agent(run_id: str, input_text: str) -> None:
                 else:
                     run.status = "completed"
                     run.final_output = result.get("final_report")
-                run.updated_at = datetime.now(timezone.utc)
+                run.updated_at = datetime.now(UTC)
                 await session.commit()
     except Exception as exc:
         async with async_session_factory() as session:
@@ -103,7 +102,7 @@ async def _run_workflow_agent(run_id: str, input_text: str) -> None:
             if run:
                 run.status = "failed"
                 run.error_message = str(exc)
-                run.updated_at = datetime.now(timezone.utc)
+                run.updated_at = datetime.now(UTC)
                 await session.commit()
 
 
@@ -111,9 +110,9 @@ async def _run_workflow_agent(run_id: str, input_text: str) -> None:
 async def create_support_run(
     body: AgentRunCreate,
     background_tasks: BackgroundTasks,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     run_id = uuid4()
     run = AgentRun(
         id=run_id,
@@ -138,9 +137,9 @@ async def create_support_run(
 async def create_workflow_run(
     body: AgentRunCreate,
     background_tasks: BackgroundTasks,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     run_id = uuid4()
     run = AgentRun(
         id=run_id,
@@ -164,7 +163,7 @@ async def create_workflow_run(
 @router.get("/{run_id}", response_model=ApiResponse[AgentRunOut])
 async def get_agent_run(
     run_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(AgentRun).where(AgentRun.id == run_id)
@@ -178,7 +177,7 @@ async def get_agent_run(
 @router.get("/{run_id}/tool-calls", response_model=ApiResponse[list[ToolCallOut]])
 async def list_tool_calls(
     run_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(ToolCall)
@@ -192,7 +191,7 @@ async def list_tool_calls(
 @router.post("/{run_id}/cancel", response_model=ApiResponse[AgentRunOut])
 async def cancel_agent_run(
     run_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict:
     result = await session.execute(
         select(AgentRun).where(AgentRun.id == run_id)
@@ -202,7 +201,7 @@ async def cancel_agent_run(
         raise HTTPException(status_code=404, detail="Agent run not found")
 
     run.status = "cancelled"
-    run.updated_at = datetime.now(timezone.utc)
+    run.updated_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(run)
     return {"data": AgentRunOut.model_validate(run)}

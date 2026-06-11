@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { TimeAgo, timeAgo } from "./TimeAgo";
+import { TimeAgo } from "./TimeAgo";
+import { timeAgo } from "./relativeTime";
 
 describe("timeAgo helper", () => {
   it("formats relative times correctly", () => {

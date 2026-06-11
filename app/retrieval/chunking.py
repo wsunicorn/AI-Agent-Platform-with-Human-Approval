@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.models.knowledge import KnowledgeChunk
-
 
 # Target chunk sizes in characters (rough proxy for tokens at ~4 chars/token).
 DEFAULT_CHUNK_SIZE = 2048  # ~512 tokens
@@ -89,7 +88,7 @@ def chunk_document(
     sections = _split_by_headings(content)
     chunks: list[KnowledgeChunk] = []
     chunk_index = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for heading, body in sections:
         if not body.strip():

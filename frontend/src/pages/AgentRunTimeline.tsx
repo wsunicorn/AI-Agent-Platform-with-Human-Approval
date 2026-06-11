@@ -6,11 +6,9 @@ import {
   CheckCircle,
   XCircle,
   Hourglass,
-  Clock,
   Hammer,
   Play,
   Prohibit,
-  Question,
 } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -36,7 +34,7 @@ export function AgentRunTimeline({ runId, onBack }: AgentRunTimelineProps) {
     queryFn: () => fetchAgentRun(runId),
   });
 
-  const { data: toolCalls, isLoading: isLoadingCalls, error: callsError, refetch: refetchCalls } = useQuery<ToolCall[]>({
+  const { data: toolCalls, isLoading: isLoadingCalls, error: callsError } = useQuery<ToolCall[]>({
     queryKey: ["tool-calls", runId],
     queryFn: () => fetchToolCalls(runId),
     enabled: !!run,
@@ -47,7 +45,7 @@ export function AgentRunTimeline({ runId, onBack }: AgentRunTimelineProps) {
     const ws = createAgentRunSocket(runId);
     ws.connect();
 
-    const unsubscribe = ws.subscribe((event) => {
+    const unsubscribe = ws.subscribe(() => {
       // Any event related to this run should trigger a refetch of data
       queryClient.invalidateQueries({ queryKey: ["agent-run", runId] });
       queryClient.invalidateQueries({ queryKey: ["tool-calls", runId] });

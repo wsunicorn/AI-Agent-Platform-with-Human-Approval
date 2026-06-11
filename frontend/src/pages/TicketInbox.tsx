@@ -1,6 +1,6 @@
 /** Ticket Inbox page. */
 
-import { Envelope, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { Envelope, Plus } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -136,8 +136,8 @@ function CreateTicketForm({
         customer_email: email || undefined,
       });
       onCreated();
-    } catch (err: any) {
-      setError(err?.message || "Failed to create ticket");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create ticket");
     } finally {
       setLoading(false);
     }

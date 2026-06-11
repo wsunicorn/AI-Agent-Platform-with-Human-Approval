@@ -17,6 +17,7 @@ from app.services.approval import ApprovalService, ApprovalStateError
 @pytest.mark.asyncio
 async def test_create_request() -> None:
     session = AsyncMock()
+    session.add = MagicMock()
     audit = AsyncMock()
     service = ApprovalService(session, audit=audit)
 

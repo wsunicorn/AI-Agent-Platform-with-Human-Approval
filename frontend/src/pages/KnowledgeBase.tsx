@@ -13,12 +13,12 @@ import {
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { EmptyState, ErrorState, SkeletonRows } from "../components/ui/States";
 import { TimeAgo } from "../components/ui/TimeAgo";
-import type { KnowledgeDocument } from "../types/models";
+import type { KnowledgeDocument, SearchResult } from "../types/models";
 
 export function KnowledgeBase() {
   const [showCreate, setShowCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const queryClient = useQueryClient();
 
@@ -186,8 +186,8 @@ function CreateDocForm({
     try {
       await createDocument({ title, content, doc_type: docType });
       onCreated();
-    } catch (err: any) {
-      setError(err?.message || "Failed to create document");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create document");
     } finally {
       setLoading(false);
     }

@@ -38,20 +38,22 @@ async def full_text_search(
     doc_type: str | None = None,
 ) -> list[SearchResult]:
     """PostgreSQL full-text search using tsvector."""
-    # Use the 'simple' text search configuration for better language‑agnostic tokenization.
+    # Use the 'simple' text search configuration for language-agnostic tokenization.
     ts_query = func.plainto_tsquery("simple", query)
+    search_text = KnowledgeChunk.content + " " + KnowledgeDocument.title
 
     stmt = (
         select(
             KnowledgeChunk,
             func.ts_rank(
-                func.to_tsvector("simple", KnowledgeChunk.content + " " + KnowledgeDocument.title),
+                func.to_tsvector("simple", search_text),
                 ts_query,
             ).label("rank"),
         )
         .join(KnowledgeDocument)
         .where(
-            func.to_tsvector("simple", KnowledgeChunk.content + " " + KnowledgeDocument.title).op("@@")(ts_query)
+            func.to_tsvector("simple", search_text)
+            .op("@@")(ts_query)
         )
         .order_by(text("rank DESC"))
         .limit(limit)

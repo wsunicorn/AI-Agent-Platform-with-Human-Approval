@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(knowledge_router)
     app.include_router(audit_logs_router)
     app.include_router(settings_router)
+    app.include_router(settings_router, prefix="/settings")
 
     # WebSocket router.
     app.include_router(websockets_router)

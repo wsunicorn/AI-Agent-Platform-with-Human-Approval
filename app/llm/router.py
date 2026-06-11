@@ -17,7 +17,7 @@ from app.llm.provider import (
     LLMResponse,
     TokenUsageTracker,
 )
-from app.llm.redactor import PIIRedactor, RedactionResult
+from app.llm.redactor import PIIRedactor
 
 logger = structlog.get_logger(__name__)
 
@@ -129,14 +129,12 @@ class ModelRouter:
             # Apply PII redaction for hosted providers.
             actual_request = request.model_copy()
             actual_request.model = model_name
-            redaction_result: RedactionResult | None = None
 
             if redact_pii and provider_name != "ollama":
                 for i, msg in enumerate(actual_request.messages):
                     result = self._redactor.redact(msg.content)
                     if result.redaction_count > 0:
                         actual_request.messages[i].content = result.redacted_text
-                        redaction_result = result
                 if actual_request.system_prompt:
                     result = self._redactor.redact(actual_request.system_prompt)
                     if result.redaction_count > 0:

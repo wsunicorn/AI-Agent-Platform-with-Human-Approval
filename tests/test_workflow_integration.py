@@ -1,14 +1,14 @@
-import uuid
 import json
-import pytest
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from app.agents.support_graph import build_support_graph
 from app.agents.workflow_graph import build_workflow_graph
 from app.llm.provider import LLMResponse
 from app.llm.router import TaskPurpose
 from app.models import (
-    ActorType,
     AgentRun,
     ApprovalRequest,
     ApprovalStatus,
@@ -16,9 +16,9 @@ from app.models import (
     ToolCall,
     ToolCallStatus,
 )
-from app.tools.mock_tools import register_mock_tools
-from app.tools.executor import ToolExecutor
 from app.services.approval import ApprovalService
+from app.tools.executor import ToolExecutor
+from app.tools.mock_tools import register_mock_tools
 
 
 def setup_mock_session(session: AsyncMock) -> None:
@@ -152,7 +152,10 @@ async def test_support_workflow_approval_required_flow() -> None:
          patch("app.retrieval.reranker.rerank_results", new_callable=AsyncMock, return_value=[]), \
          patch("app.retrieval.context.pack_context", return_value=mock_packed), \
          patch("app.services.events.get_redis", return_value=AsyncMock()), \
-         patch("app.services.websocket_manager.websocket_manager.broadcast", new_callable=AsyncMock) as mock_broadcast:
+         patch(
+             "app.services.websocket_manager.websocket_manager.broadcast",
+             new_callable=AsyncMock,
+         ):
 
         # 2. Compile and run graph
         graph = build_support_graph()
@@ -174,9 +177,9 @@ async def test_support_workflow_approval_required_flow() -> None:
         assert result.get("approval_required_actions")[0]["tool_name"] == "send_email"
         assert len(result.get("approval_requests", [])) == 1
 
-        # Verify that create_approval_requests was called and added records to DB mock
-        assert mock_session.add.call_count >= 2  # ToolCall and ApprovalRequest should have been added
-        
+        # ToolCall and ApprovalRequest should have been added.
+        assert mock_session.add.call_count >= 2
+
         # 4. Human Approval & Execution Flow
         # Retrieve the approval request created
         approval_req = None
@@ -208,7 +211,7 @@ async def test_support_workflow_approval_required_flow() -> None:
 
             # Execute the approved action using ToolExecutor
             executor = ToolExecutor()
-            # Mock the RedisLock to do nothing (set return_value of __aexit__ to False to allow exceptions to raise if any)
+            # Let exceptions propagate while bypassing the external Redis lock.
             with patch("app.tools.executor.RedisLock") as mock_lock:
                 mock_lock.return_value.__aenter__ = AsyncMock()
                 mock_lock.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -243,7 +246,8 @@ async def test_support_workflow_blocked_action_flow() -> None:
             return {
                 "actions": [
                     {
-                        "tool_name": "export_report",  # Let's say this is blocked or has a blocked payload
+                        # Let's say this is blocked or has a blocked payload.
+                        "tool_name": "export_report",
                         "payload": {"format": "xlsx", "title": "Secret report"},
                         "reason": "Exfiltrate database data",
                     }
@@ -264,8 +268,8 @@ async def test_support_workflow_blocked_action_flow() -> None:
     ticket_id = uuid.uuid4()
 
     # Modify the PolicyEngine to return BLOCKED for export_report with xlsx
-    from app.guardrails.policy import PolicyDecision
     from app.guardrails import PolicyAction, PolicyReason
+    from app.guardrails.policy import PolicyDecision
 
     mock_policy = MagicMock()
     mock_policy.decide.return_value = PolicyDecision(
@@ -275,12 +279,13 @@ async def test_support_workflow_blocked_action_flow() -> None:
         reason=PolicyReason.BLOCKED_TOOL,
         message="Exporting report is blocked by company policy.",
     )
+    empty_context = MagicMock(context_text="", citations=[])
 
     with patch("app.agents.nodes.get_model_router", return_value=mock_router), \
          patch("app.core.database.async_session_factory", return_value=mock_sessionmaker), \
          patch("app.retrieval.search.hybrid_search", new_callable=AsyncMock, return_value=[]), \
          patch("app.retrieval.reranker.rerank_results", new_callable=AsyncMock, return_value=[]), \
-         patch("app.retrieval.context.pack_context", return_value=MagicMock(context_text="", citations=[])), \
+         patch("app.retrieval.context.pack_context", return_value=empty_context), \
          patch("app.guardrails.policy.PolicyEngine", return_value=mock_policy), \
          patch("app.services.events.get_redis", return_value=AsyncMock()):
 
@@ -420,12 +425,13 @@ async def test_support_workflow_rejected_action_flow() -> None:
 
     run_id = uuid.uuid4()
     ticket_id = uuid.uuid4()
+    empty_context = MagicMock(context_text="", citations=[])
 
     with patch("app.agents.nodes.get_model_router", return_value=mock_router), \
          patch("app.core.database.async_session_factory", return_value=mock_sessionmaker), \
          patch("app.retrieval.search.hybrid_search", new_callable=AsyncMock, return_value=[]), \
          patch("app.retrieval.reranker.rerank_results", new_callable=AsyncMock, return_value=[]), \
-         patch("app.retrieval.context.pack_context", return_value=MagicMock(context_text="", citations=[])), \
+         patch("app.retrieval.context.pack_context", return_value=empty_context), \
          patch("app.services.events.get_redis", return_value=AsyncMock()):
 
         graph = build_support_graph()
@@ -521,12 +527,13 @@ async def test_integration_audit_logging() -> None:
 
     run_id = uuid.uuid4()
     ticket_id = uuid.uuid4()
+    empty_context = MagicMock(context_text="", citations=[])
 
     with patch("app.agents.nodes.get_model_router", return_value=mock_router), \
          patch("app.core.database.async_session_factory", return_value=mock_sessionmaker), \
          patch("app.retrieval.search.hybrid_search", new_callable=AsyncMock, return_value=[]), \
          patch("app.retrieval.reranker.rerank_results", new_callable=AsyncMock, return_value=[]), \
-         patch("app.retrieval.context.pack_context", return_value=MagicMock(context_text="", citations=[])), \
+         patch("app.retrieval.context.pack_context", return_value=empty_context), \
          patch("app.services.events.get_redis", return_value=AsyncMock()):
 
         graph = build_support_graph()
@@ -556,8 +563,10 @@ async def test_integration_audit_logging() -> None:
 @pytest.mark.asyncio
 async def test_websocket_event_delivery() -> None:
     import asyncio
-    from app.api.websockets import _agent_run_manager, _approval_manager, redis_event_listener
+
     from starlette.websockets import WebSocketState
+
+    from app.api.websockets import _agent_run_manager, _approval_manager, redis_event_listener
     
     # Let's mock the WebSocket objects
     mock_ws_run = AsyncMock()

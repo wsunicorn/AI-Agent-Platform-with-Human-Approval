@@ -106,7 +106,11 @@ async def redis_event_listener() -> None:
                             await _agent_run_manager.broadcast(topic=topic, message=ws_event)
                             
                     # Broadcast to approvals manager if event is approval related
-                    if real_event_type.startswith("approval.") or real_entity_type == "approval_request":
+                    is_approval_event = (
+                        real_event_type.startswith("approval.")
+                        or real_entity_type == "approval_request"
+                    )
+                    if is_approval_event:
                         await _approval_manager.broadcast(topic="approvals", message=ws_event)
                         
                     # Broadcast to general notifications
@@ -178,4 +182,3 @@ async def ws_notifications(websocket: WebSocket) -> None:
         _notification_manager.disconnect(websocket, topic="notifications")
     except Exception:
         _notification_manager.disconnect(websocket, topic="notifications")
-

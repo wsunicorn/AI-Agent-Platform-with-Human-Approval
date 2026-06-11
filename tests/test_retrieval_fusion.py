@@ -1,6 +1,7 @@
 import uuid
-from app.retrieval.search import SearchResult, reciprocal_rank_fusion
+
 from app.models.knowledge import KnowledgeChunk
+from app.retrieval.search import SearchResult, reciprocal_rank_fusion
 
 
 def create_mock_chunk() -> KnowledgeChunk:
@@ -30,7 +31,8 @@ def test_rrf_scoring_and_ranking() -> None:
 
     # Fuse with k = 60
     # chunk_a: rank 0 in list 1. RRF score = 1 / (60 + 0 + 1) = 1/61
-    # chunk_b: rank 1 in list 1, rank 0 in list 2. RRF score = 1 / (60 + 1 + 1) + 1 / (60 + 0 + 1) = 1/62 + 1/61
+    # chunk_b: rank 1 in list 1, rank 0 in list 2.
+    # RRF score = 1 / (60 + 1 + 1) + 1 / (60 + 0 + 1) = 1/62 + 1/61
     # chunk_c: rank 1 in list 2. RRF score = 1 / (60 + 1 + 1) = 1/62
 
     fused = reciprocal_rank_fusion([list_1, list_2], k=60)

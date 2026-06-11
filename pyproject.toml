@@ -9,3 +9,6 @@ ignore = ["UP046"]
 [tool.pytest.ini_options]
 testpaths = ["app", "tests"]
 asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::langchain_core._api.deprecation.LangChainPendingDeprecationWarning",
+]
