@@ -22,10 +22,12 @@ class SearchResult:
         chunk: KnowledgeChunk,
         score: float,
         method: str,
+        document_title: str | None = None,
     ) -> None:
         self.chunk = chunk
         self.score = score
         self.method = method
+        self.document_title = document_title
 
     def __repr__(self) -> str:
         return f"SearchResult(score={self.score:.4f}, method={self.method})"
@@ -45,6 +47,7 @@ async def full_text_search(
     stmt = (
         select(
             KnowledgeChunk,
+            KnowledgeDocument.title,
             func.ts_rank(
                 func.to_tsvector("simple", search_text),
                 ts_query,
@@ -68,7 +71,7 @@ async def full_text_search(
     rows = result.all()
 
     return [
-        SearchResult(chunk=row[0], score=float(row[1]), method="full_text")
+        SearchResult(chunk=row[0], score=float(row[2]), method="full_text", document_title=row[1])
         for row in rows
     ]
 
@@ -86,19 +89,19 @@ async def vector_search(
     stmt = (
         select(
             KnowledgeChunk,
+            KnowledgeDocument.title,
             KnowledgeChunk.embedding.cosine_distance(query_embedding).label(
                 "distance"
             ),
         )
+        .join(KnowledgeDocument)
         .where(KnowledgeChunk.embedding.isnot(None))
         .order_by(text("distance ASC"))
         .limit(limit)
     )
 
     if doc_type:
-        stmt = stmt.join(KnowledgeDocument).where(
-            KnowledgeDocument.document_type == doc_type
-        )
+        stmt = stmt.where(KnowledgeDocument.document_type == doc_type)
 
     result = await session.execute(stmt)
     rows = result.all()
@@ -107,8 +110,9 @@ async def vector_search(
     return [
         SearchResult(
             chunk=row[0],
-            score=max(0, 1.0 - float(row[1])),
+            score=max(0, 1.0 - float(row[2])),
             method="vector",
+            document_title=row[1],
         )
         for row in rows
     ]
@@ -142,6 +146,7 @@ def reciprocal_rank_fusion(
             chunk=chunk_map[cid].chunk,
             score=scores[cid],
             method="hybrid_rrf",
+            document_title=chunk_map[cid].document_title,
         )
         for cid in sorted_ids
     ]

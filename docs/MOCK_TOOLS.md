@@ -62,6 +62,12 @@ Customer-facing or disclosure-sensitive mock integrations pause for review:
 Direct execution of sensitive tools with `require_approval=False` is blocked by
 the Phase 5 policy engine.
 
+These 10 tools are the *only* ones with a real handler registered. The
+guardrail catalog (`app/guardrails/catalog.py`) also names several
+`approval_required`/`blocked` tools that have no registered implementation —
+see [`GUARDRAILS_AND_APPROVALS.md`](GUARDRAILS_AND_APPROVALS.md) for what
+actually happens if one of those names is called.
+
 ## Demo Flow
 
 Refund ticket example:

@@ -62,7 +62,8 @@ export function AgentRunTimeline({ runId, onBack }: AgentRunTimelineProps) {
     const ws = createAgentRunSocket(runId);
     ws.connect();
 
-    const unsubscribe = ws.subscribe(() => {
+    const unsubscribe = ws.subscribe((event) => {
+      if (event.type === "pong") return;
       queryClient.invalidateQueries({ queryKey: ["agent-run", runId] });
       queryClient.invalidateQueries({ queryKey: ["tool-calls", runId] });
     });
@@ -424,7 +425,7 @@ function ToolCallNode({
         className={`absolute -left-[31px] top-0 flex h-6 w-6 items-center justify-center rounded-full border ${
           call.status === "completed"
             ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
-            : call.status === "failed"
+            : call.status === "failed" || call.status === "denied"
               ? "border-red-500/50 bg-red-500/20 text-red-400"
               : "border-amber-500/50 bg-amber-500/20 text-amber-400"
         }`}
@@ -447,7 +448,7 @@ function ToolCallNode({
               className={`text-xs ${
                 call.status === "completed"
                   ? "text-emerald-400"
-                  : call.status === "failed"
+                  : call.status === "failed" || call.status === "denied"
                     ? "text-red-400"
                     : "text-amber-400"
               }`}

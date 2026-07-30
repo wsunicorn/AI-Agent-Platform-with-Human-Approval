@@ -2,9 +2,18 @@
 
 Human-in-the-loop AI support operations platform with ticket classification, tool calling, guardrails, audit logs, realtime updates, and approval workflows for sensitive actions.
 
+![Ticket Inbox screenshot](docs/assets/UI.png)
+
 ## Current Status
 
-All phases (Phases 0-15) are fully implemented and verified, including planning, infrastructure, database models, core backend services, guardrails, approval logic, mock tools, LLM gateway, hybrid RAG retrieval, LangGraph workflow execution, REST/WebSocket APIs, the React dashboard webapp, and comprehensive unit, integration, and Playwright E2E tests.
+All phases (Phases 0-15) are implemented: planning, infrastructure, database
+models, core backend services, guardrails, approval logic, mock tools, LLM
+gateway, hybrid RAG retrieval, LangGraph workflow execution, REST/WebSocket
+APIs, the React dashboard, and unit/integration/Playwright E2E tests. See
+[`docs/PROJECT_BOARD.md`](docs/PROJECT_BOARD.md) for the honest list of known
+gaps (no auth, a couple of Settings screens that don't yet affect runtime
+behavior, unwired realtime channels) found during the most recent full
+review.
 
 ## Tech Stack
 
@@ -17,11 +26,22 @@ All phases (Phases 0-15) are fully implemented and verified, including planning,
 ## Documentation
 
 - [Documentation index](docs/README.md)
-- [Project checklist](docs/PROJECT_CHECKLIST.md)
-- [Architecture](docs/ARCHITECTURE.md)
+- [Project checklist](docs/PROJECT_CHECKLIST.md) / [known gaps and backlog](docs/PROJECT_BOARD.md)
+- [Architecture](docs/ARCHITECTURE.md) — service boundaries, event flow, and where things actually run
+- [Data model](docs/DATA_MODEL.md)
+- [API design](docs/API_DESIGN.md)
+- [Agent workflows](docs/AGENT_WORKFLOWS.md) — the two LangGraph graphs, node by node
+- [Guardrails and approvals](docs/GUARDRAILS_AND_APPROVALS.md)
 - [Tech stack](docs/TECH_STACK.md)
 - [LLM and retrieval](docs/LLM_AND_RETRIEVAL.md)
 - [Mock tools](docs/MOCK_TOOLS.md)
+- [Frontend spec](docs/FRONTEND_SPEC.md)
+
+The docs above describe the system as it actually behaves today, including
+known gaps (e.g. no auth, some Settings screens are not fully wired to
+runtime behavior) rather than the original aspirational design — see each
+doc for specifics and [`docs/PROJECT_BOARD.md`](docs/PROJECT_BOARD.md) for the
+consolidated list.
 
 ## Quickstart
 
@@ -49,18 +69,6 @@ Run database migrations and seed demo data:
 docker compose exec api alembic upgrade head
 docker compose exec api python -m app.db.seed
 ```
-
-Phase 4 core services now include audit logging, Redis events, topic-based WebSocket
-connection management, approval state transitions, tool registry/execution, retry
-timeouts, and Redis locks for sensitive action execution.
-
-Phase 5 guardrails now enforce safe, approval-required, and blocked tool policies
-before execution. Sensitive tools require approval and duplicate approved execution is
-blocked.
-
-Phase 6 mock tools now cover ticket classification, priority detection, entity
-extraction, knowledge search, email drafting, ticket summarization, report
-generation, mock email sending, mock CRM notes, and mock report export.
 
 API health:
 

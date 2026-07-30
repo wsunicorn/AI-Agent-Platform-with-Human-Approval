@@ -85,6 +85,7 @@ async def rerank_results(
             chunk=r.chunk,
             score=s,
             method="reranked",
+            document_title=r.document_title,
         )
         for r, s in scored[:top_k]
     ]

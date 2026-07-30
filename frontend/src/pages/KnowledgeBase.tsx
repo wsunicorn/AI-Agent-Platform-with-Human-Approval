@@ -222,8 +222,9 @@ function CreateDocForm({
           >
             <option value="policy">Policy</option>
             <option value="faq">FAQ</option>
-            <option value="procedure">Procedure</option>
-            <option value="reference">Reference</option>
+            <option value="playbook">Playbook</option>
+            <option value="macro">Macro</option>
+            <option value="report_template">Report Template</option>
           </select>
         </div>
         <div>

@@ -44,6 +44,18 @@ Expected flow:
 5. No tool execution happens.
 6. Audit log records the blocked action.
 
+**Not reproducible end-to-end through the actual Support Agent graph today.**
+`plan_tool_actions` (`app/agents/nodes.py`) only ever proposes actions from a
+hardcoded allow-list (`send_email`, `create_crm_note`, `export_report`) — a
+delete request would just never turn into a `delete_customer_record` action
+via that node. `delete_customer_record` also has no registered
+`ToolDefinition`, so if you call `ToolExecutor.execute` with that name
+directly (as `tests/test_tool_executor.py` does), it's denied as
+*unregistered*, not because the blocked-policy branch fired. To actually
+demo the blocked branch firing, either register a `ToolDefinition` for one of
+the blocked names, or call the policy engine directly — see
+[`GUARDRAILS_AND_APPROVALS.md`](GUARDRAILS_AND_APPROVALS.md).
+
 ## Scenario 3: Weekly Support Report
 
 Input:

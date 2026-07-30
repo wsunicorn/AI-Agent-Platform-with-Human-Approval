@@ -127,7 +127,12 @@ class ModelRouter:
                 continue
 
             # Apply PII redaction for hosted providers.
-            actual_request = request.model_copy()
+            # Deep copy: model_copy(deep=False) would leave `messages` pointing at
+            # the same LLMMessage instances as `request`, so redacting in place
+            # below would permanently corrupt the caller's original request and
+            # leak into any later fallback attempt (e.g. the local Ollama call
+            # would see already-redacted text instead of the real content).
+            actual_request = request.model_copy(deep=True)
             actual_request.model = model_name
 
             if redact_pii and provider_name != "ollama":

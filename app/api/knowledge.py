@@ -106,8 +106,8 @@ async def search_knowledge(
                 chunk_content=r.chunk.content[:500],
                 score=r.score,
                 method=r.method,
-                document_title=getattr(r.chunk, "heading", None),
-                heading=getattr(r.chunk, "heading", None),
+                document_title=r.document_title,
+                heading=r.chunk.heading,
             )
             for r in results
         ]

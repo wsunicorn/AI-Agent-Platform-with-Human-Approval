@@ -1,7 +1,12 @@
 # Core Backend Services
 
-Phase 4 adds the backend runtime layer used by agent workflows, APIs, and the future
-React dashboard.
+The backend runtime layer used by agent workflows, APIs, and the React
+dashboard. **All of it runs inside the `api` process** — LangGraph runs
+execute as FastAPI `BackgroundTasks` coroutines, and approved-tool execution
+happens synchronously inside the `POST /approvals/{id}/execute` request. The
+separate `worker` container (`app/workers/worker.py`) only runs a dependency
+health-check heartbeat today; `arq` is installed but not wired to any job
+queue. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full picture.
 
 ## Services
 

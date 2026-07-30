@@ -110,10 +110,17 @@ export function ApprovalDetail({ approvalId, onBack, onViewRun }: ApprovalDetail
   const isPending =
     approval.status === "pending_review" || approval.status === "proposed";
 
+  const actionError = [approveMut, rejectMut, editMut, executeMut].find((m) => m.isError)?.error;
+
   return (
     <div>
       {/* Header */}
       <div className="mb-6">
+        {actionError && (
+          <div className="mb-4 rounded-md border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-400">
+            {actionError instanceof Error ? actionError.message : "Action failed."}
+          </div>
+        )}
         <button
           onClick={onBack}
           className="mb-4 flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-300"

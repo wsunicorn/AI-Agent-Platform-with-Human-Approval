@@ -35,24 +35,25 @@ BLOCKED_TOOL_NAMES = frozenset(
 )
 
 
-def catalog_sensitivity(tool_name: str) -> Sensitivity | None:
-    if tool_name in BLOCKED_TOOL_NAMES:
-        return Sensitivity.BLOCKED
-    if tool_name in APPROVAL_REQUIRED_TOOL_NAMES:
-        return Sensitivity.APPROVAL_REQUIRED
-    if tool_name in SAFE_TOOL_NAMES:
-        return Sensitivity.SAFE
-    return None
-
-
 SAFE_TOOLS = SAFE_TOOL_NAMES
 APPROVAL_REQUIRED_TOOLS = APPROVAL_REQUIRED_TOOL_NAMES
 BLOCKED_TOOLS = BLOCKED_TOOL_NAMES
 
-TOOL_SENSITIVITY_CATALOG = {}
+# Mutable runtime overrides, seeded from the default frozensets above.
+# `app.api.settings` mutates this dict directly (guardrail/tool settings
+# endpoints), so it must be the single source of truth that `catalog_sensitivity`
+# reads from -- otherwise policy enforcement silently ignores admin changes.
+TOOL_SENSITIVITY_CATALOG: dict[str, str] = {}
 for name in SAFE_TOOLS:
-    TOOL_SENSITIVITY_CATALOG[name] = "safe"
+    TOOL_SENSITIVITY_CATALOG[name] = Sensitivity.SAFE.value
 for name in APPROVAL_REQUIRED_TOOLS:
-    TOOL_SENSITIVITY_CATALOG[name] = "approval_required"
+    TOOL_SENSITIVITY_CATALOG[name] = Sensitivity.APPROVAL_REQUIRED.value
 for name in BLOCKED_TOOLS:
-    TOOL_SENSITIVITY_CATALOG[name] = "blocked"
+    TOOL_SENSITIVITY_CATALOG[name] = Sensitivity.BLOCKED.value
+
+
+def catalog_sensitivity(tool_name: str) -> Sensitivity | None:
+    value = TOOL_SENSITIVITY_CATALOG.get(tool_name)
+    if value is None:
+        return None
+    return Sensitivity(value)

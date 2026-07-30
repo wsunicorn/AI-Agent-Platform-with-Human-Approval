@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.agent_runs import router as agent_runs_router
 from app.api.approvals import router as approvals_router
@@ -48,6 +51,42 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Normalize every error response to the documented {data, error, meta}
+    # envelope (docs/API_DESIGN.md) so the frontend's `body.error.message`
+    # unwrapping always finds a real message instead of falling back to a
+    # bare "HTTP 404" string.
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "data": None,
+                "error": {
+                    "code": "HTTP_ERROR",
+                    "message": exc.detail,
+                    "details": {},
+                },
+                "meta": {},
+            },
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "data": None,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "The request payload is invalid.",
+                    "details": {"errors": jsonable_encoder(exc.errors())},
+                },
+                "meta": {},
+            },
+        )
+
     # REST API routers.
     app.include_router(health_router)
     app.include_router(tickets_router)
@@ -55,7 +94,6 @@ def create_app() -> FastAPI:
     app.include_router(approvals_router)
     app.include_router(knowledge_router)
     app.include_router(audit_logs_router)
-    app.include_router(settings_router)
     app.include_router(settings_router, prefix="/settings")
 
     # WebSocket router.

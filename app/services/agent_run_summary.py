@@ -226,10 +226,18 @@ def build_agent_run_output(run: AgentRun) -> dict[str, Any]:
     return to_jsonable(output)
 
 
-def ticket_status_for_run(status: AgentRunStatus) -> TicketStatus:
+def ticket_status_for_run(
+    status: AgentRunStatus, output: dict[str, Any] | None = None
+) -> TicketStatus:
     if status == AgentRunStatus.WAITING_FOR_APPROVAL:
         return TicketStatus.WAITING_FOR_APPROVAL
     if status == AgentRunStatus.COMPLETED:
+        counts = _as_dict((output or {}).get("counts"))
+        # A run where the only outcome was a human rejecting the sensitive
+        # action (no successful deliveries) still resolves as COMPLETED, but
+        # it should not read the same as a genuinely fulfilled ticket.
+        if counts.get("rejected_approvals") and not counts.get("deliveries"):
+            return TicketStatus.IN_PROGRESS
         return TicketStatus.RESOLVED
     if status == AgentRunStatus.CANCELLED:
         return TicketStatus.TRIAGED
@@ -255,7 +263,7 @@ async def sync_ticket_from_run(
     if ticket is None:
         return
 
-    ticket.status = ticket_status_for_run(status)
+    ticket.status = ticket_status_for_run(status, output)
     ticket.intent = _first_text(output.get("intent")) or ticket.intent
     ticket.priority = _first_text(output.get("priority")) or ticket.priority
     entities = output.get("entities")

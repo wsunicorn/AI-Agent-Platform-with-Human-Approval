@@ -1,6 +1,7 @@
 /** Approval Queue page. */
 
 import { CheckCircle, EnvelopeSimple, Play, ShieldCheck, XCircle } from "@phosphor-icons/react";
+import type { UseMutationResult } from "@tanstack/react-query";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -123,6 +124,11 @@ export function ApprovalQueue({ onSelectApproval }: ApprovalQueueProps) {
 
               <ApprovalPayloadPreview approval={approval} />
 
+              <MutationErrorHint
+                mutations={[approveMut, rejectMut, executeMut]}
+                approvalId={approval.id}
+              />
+
               {/* Actions */}
               {(approval.status === "pending_review" ||
                 approval.status === "proposed") && (
@@ -163,6 +169,22 @@ export function ApprovalQueue({ onSelectApproval }: ApprovalQueueProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function MutationErrorHint({
+  mutations,
+  approvalId,
+}: {
+  mutations: UseMutationResult<Approval, Error, string>[];
+  approvalId: string;
+}) {
+  const failed = mutations.find((m) => m.isError && m.variables === approvalId);
+  if (!failed) return null;
+  return (
+    <p className="mt-2 rounded-md border border-red-900 bg-red-950/40 px-2.5 py-1.5 text-xs text-red-400">
+      {failed.error instanceof Error ? failed.error.message : "Action failed."}
+    </p>
   );
 }
 

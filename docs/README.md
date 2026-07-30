@@ -1,6 +1,9 @@
 # Documentation Index
 
-This folder turns the project idea into implementation-ready documents.
+This folder documents the system as implemented. Most files started as
+pre-implementation planning docs and have since been reconciled against the
+actual code — where a doc calls out a gap or a divergence from the original
+design, that's intentional and current as of 2026-07-30, not an oversight.
 
 ## Source Brief
 
